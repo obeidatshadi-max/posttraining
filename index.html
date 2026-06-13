@@ -1,0 +1,2400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Behavioral Reinforcement Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: #F0FAF4; font-family: 'Syne', sans-serif; }
+  ::-webkit-scrollbar { display: none; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect } = React;
+
+
+
+// ── Light Green Color System ──────────────────────────────────────────────────
+const C = {
+  bg:         "#F0FAF4",
+  surface:    "#FFFFFF",
+  card:       "#FFFFFF",
+  cardAlt:    "#F7FCF9",
+  border:     "#C8E6D3",
+  borderDark: "#A0CDB5",
+  accent:     "#1A7A4A",   // deep forest green
+  accentMid:  "#2EAD6A",   // medium green
+  accentLight:"#5FCE91",   // soft green
+  accentSoft: "rgba(26,122,74,0.08)",
+  accentSoft2:"rgba(26,122,74,0.15)",
+  teal:       "#0891B2",
+  tealSoft:   "rgba(8,145,178,0.10)",
+  amber:      "#D97706",
+  amberSoft:  "rgba(217,119,6,0.10)",
+  rose:       "#DC2626",
+  roseSoft:   "rgba(220,38,38,0.08)",
+  purple:     "#7C3AED",
+  purpleSoft: "rgba(124,58,237,0.10)",
+  text:       "#0F2417",
+  textSoft:   "#2D5440",
+  muted:      "#6B8F7A",
+  subtle:     "#E4F3EB",
+  white:      "#FFFFFF",
+  shadow:     "0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(26,122,74,0.06)",
+  shadowMd:   "0 4px 20px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)",
+};
+
+// ── Demo Data ─────────────────────────────────────────────────────────────────
+// CLIENT COMPANIES — the organisations the trainer delivers workshops FOR
+const CLIENTS = [
+  {
+    id: 1,
+    name: "PharmaEdge Middle East",
+    industry: "Pharmaceutical",
+    country: "Jordan",
+    size: "450 employees",
+    contact: "Hana Al-Rashid",
+    contactTitle: "L&D Manager",
+    contactEmail: "hana@pharmaedge.com",
+    phone: "+962 79 555 0101",
+    logo: "PE",
+    status: "active",
+    contractStart: "Jan 2025",
+    contractEnd: "Dec 2025",
+    journeys: [1, 2, 3],
+    ldPerson: "Hana Al-Rashid",
+    notes: "Priority client. Sales force of 120 reps. Focus on consultative selling and objection handling. Q3 review scheduled.",
+  },
+  {
+    id: 2,
+    name: "MedLife Arabia",
+    industry: "Medical Devices",
+    country: "Saudi Arabia",
+    size: "230 employees",
+    contact: "Faris Al-Mutairi",
+    contactTitle: "Training Director",
+    contactEmail: "faris@medlife.sa",
+    phone: "+966 55 123 4567",
+    logo: "ML",
+    status: "active",
+    contractStart: "Mar 2025",
+    contractEnd: "Mar 2026",
+    journeys: [],
+    ldPerson: "Faris Al-Mutairi",
+    notes: "New client onboarding in progress. First journey planned for Q3 2025.",
+  },
+];
+
+const COMPANY = CLIENTS[0]; // default active client
+
+const USERS = {
+  admin:   { id:"admin",   name:"Hana Al-Rashid",  role:"admin",   avatar:"HA", title:"L&D Manager" },
+  trainer: { id:"trainer", name:"Shadi Obeidat",    role:"trainer", avatar:"SO", title:"Senior Trainer" },
+  trainee: { id:"trainee", name:"Ahmad Khalil",     role:"trainee", avatar:"AK", title:"Medical Rep" },
+  manager: { id:"manager", name:"Layla Mansour",    role:"manager", avatar:"LM", title:"District Manager" },
+};
+
+const WORKSHOPS = [
+  { id:1, title:"SPIN Selling Mastery",   facilitator:"Shadi Obeidat", phase:3, day:47, total:90, attendees:18, competency:"Consultative Selling", score:72, trend:8,  description:"A 90-day behavioral journey to embed consultative questioning skills across the sales team.", outcomes:["Ask 3+ Situation questions before pitching","Use Implication questions to deepen pain","Close with a Need-Payoff statement"], evalLink:"https://forms.example.com/spin-eval" },
+  { id:2, title:"Coaching Conversations", facilitator:"Sara Al-Najjar",  phase:2, day:22, total:90, attendees:12, competency:"Leadership",           score:61, trend:5,  description:"Developing a coaching culture through structured conversation frameworks.", outcomes:["Open with GROW-based questions","Allow 30s silence before responding","Document coaching sessions weekly"], evalLink:"https://forms.example.com/coach-eval" },
+  { id:3, title:"Objection Handling",     facilitator:"Shadi Obeidat", phase:4, day:78, total:90, attendees:9,  competency:"Sales",                 score:84, trend:14, description:"Systematic approach to handling customer objections with confidence and structure.", outcomes:["Name objection type before responding","Apply Feel-Felt-Found consistently","Track top 3 objection patterns post-visit"], evalLink:"https://forms.example.com/obj-eval" },
+];
+
+const PHASES = [
+  { id:1, label:"Immediate",  days:"1–7",   color:C.accent,     icon:"⚡" },
+  { id:2, label:"Activation", days:"7–30",  color:C.teal,       icon:"🎯" },
+  { id:3, label:"Habit",      days:"30–60", color:C.amber,      icon:"🔄" },
+  { id:4, label:"Identity",   days:"60–90", color:C.purple,     icon:"✦"  },
+];
+
+// JOURNEYS — each trainee can be enrolled in multiple journeys across time
+const JOURNEYS = [
+  {
+    id: 1,
+    number: 1,
+    clientId: 1,
+    workshopId: 1,
+    title: "SPIN Selling Mastery",
+    subtitle: "Consultative Selling · 90-Day Journey",
+    status: "active",
+    phase: 3,
+    day: 47,
+    total: 90,
+    score: 72,
+    streak: 12,
+    startDate: "Mar 2025",
+    endDate: "Jun 2025",
+    facilitator: "Shadi Obeidat",
+    color: C.accent,
+    icon: "🎯",
+    completedPhases: [1, 2],
+    description: "A 90-day behavioral journey to embed consultative questioning skills across the sales team.",
+    outcomes: ["Ask 3+ Situation questions before pitching", "Use Implication questions to deepen pain", "Close with a Need-Payoff statement"],
+    evalLink: "https://forms.example.com/spin-eval",
+  },
+  {
+    id: 2,
+    number: 2,
+    clientId: 1,
+    workshopId: 2,
+    title: "Coaching Conversations",
+    subtitle: "Leadership & Coaching · 90-Day Journey",
+    status: "upcoming",
+    phase: 0,
+    day: 0,
+    total: 90,
+    score: null,
+    streak: 0,
+    startDate: "Jul 2025",
+    endDate: "Oct 2025",
+    facilitator: "Sara Al-Najjar",
+    color: C.teal,
+    icon: "💬",
+    completedPhases: [],
+    description: "Developing a coaching culture through structured conversation frameworks (GROW model).",
+    outcomes: ["Open with GROW-based questions", "Allow 30s silence before responding", "Document coaching sessions weekly"],
+    evalLink: "https://forms.example.com/coach-eval",
+  },
+  {
+    id: 3,
+    number: 3,
+    clientId: 1,
+    workshopId: 3,
+    title: "KAM Fundamentals",
+    subtitle: "Key Account Management · 90-Day Journey",
+    status: "planned",
+    phase: 0,
+    day: 0,
+    total: 90,
+    score: null,
+    streak: 0,
+    startDate: "Nov 2025",
+    endDate: "Feb 2026",
+    facilitator: "Shadi Obeidat",
+    color: C.purple,
+    icon: "🗝️",
+    completedPhases: [],
+    description: "Strategic account management skills for building long-term relationships with key accounts.",
+    outcomes: ["Map all stakeholders per account", "Build a 12-month account plan", "Conduct quarterly business reviews"],
+    evalLink: "https://forms.example.com/kam-eval",
+  },
+];
+const WORKSHOP_MATERIALS = {
+  1: {
+    outline: [
+      { week: "Week 1", title: "Foundation: The SPIN Framework", topics: ["What SPIN means and why it works", "The 4-stage questioning sequence", "Difference between features and needs", "Common mistakes reps make in discovery"] },
+      { week: "Week 2–3", title: "Situation & Problem Questions", topics: ["Building rapport through Situation questions", "Identifying implicit vs explicit needs", "Problem question depth and timing", "Practice: 20-question exercise with your territory"] },
+      { week: "Week 4–6", title: "Implication Questions — The Heart of SPIN", topics: ["Why Implication is the hardest stage", "Turning small problems into urgent priorities", "Silence as a tool — the 30-second rule", "Field application: Implication with specialist doctors"] },
+      { week: "Week 7–10", title: "Need-Payoff & Closing", topics: ["Getting the customer to state the value", "Linking Need-Payoff to your product's strengths", "Transition from questioning to presenting", "Building a repeatable SPIN call structure"] },
+      { week: "Week 11–13", title: "Integration & Identity", topics: ["SPIN as a mindset, not just a method", "Peer coaching: reviewing each other's calls", "Building your personal question bank", "90-day behavioral self-assessment"] },
+    ],
+    videos: [
+      { id:"v1", title:"Introduction to SPIN Selling",        duration:"18 min", phase:1, watched:true,  thumbnail:"🎬" },
+      { id:"v2", title:"Live Demo: Situation Questions",       duration:"24 min", phase:1, watched:true,  thumbnail:"🎬" },
+      { id:"v3", title:"Mastering Implication — Masterclass", duration:"31 min", phase:2, watched:false, thumbnail:"🎬" },
+      { id:"v4", title:"Need-Payoff in Action: Role Play",    duration:"22 min", phase:3, watched:false, thumbnail:"🎬" },
+      { id:"v5", title:"90-Day Identity Integration",         duration:"15 min", phase:4, watched:false, thumbnail:"🎬" },
+    ],
+    documents: [
+      { id:"d1", title:"SPIN Selling Reference Card",    type:"PDF",  size:"1.2 MB", phase:1, icon:"📄" },
+      { id:"d2", title:"20 Situation Questions Template",type:"DOCX", size:"340 KB", phase:1, icon:"📝" },
+      { id:"d3", title:"Implication Question Builder",   type:"XLSX", size:"180 KB", phase:2, icon:"📊" },
+      { id:"d4", title:"SPIN Call Planning Sheet",       type:"PDF",  size:"800 KB", phase:2, icon:"📄" },
+      { id:"d5", title:"Personal Question Bank Template",type:"DOCX", size:"220 KB", phase:3, icon:"📝" },
+      { id:"d6", title:"90-Day Behavioral Scorecard",    type:"PDF",  size:"560 KB", phase:4, icon:"📄" },
+    ],
+    exercises: [
+      { id:"ex1", title:"20 Questions Mapping Exercise",    desc:"Map 20 open questions to each SPIN stage for your top 3 doctors.", phase:1, completed:true  },
+      { id:"ex2", title:"Implication Chain Builder",        desc:"Take one customer problem and build a 5-step implication chain.", phase:2, completed:false },
+      { id:"ex3", title:"Silent Pause Roleplay",            desc:"Practice 3 conversations where you hold silence for 30+ seconds.", phase:2, completed:false },
+      { id:"ex4", title:"Need-Payoff Statement Library",    desc:"Write 10 Need-Payoff variations for your core product lines.",  phase:3, completed:false },
+    ],
+    evalLink: "https://forms.example.com/spin-eval",
+    facilitator: "Shadi Obeidat",
+    facilitatorNote: "This course is designed for pharma reps who already have baseline selling skills. Focus on the Implication stage — it's where most of you will see the biggest behavioral shift. Reach out any time via Messages.",
+  },
+};
+
+const TEAM = [
+  { id:1, name:"Ahmad Khalil",  avatar:"AK", role:"Medical Rep",  manager:"Layla Mansour",  score:78, streak:12, phase:3, workshopId:1 },
+  { id:2, name:"Rana Haddad",   avatar:"RH", role:"Senior Rep",   manager:"Layla Mansour",  score:91, streak:21, phase:4, workshopId:1 },
+  { id:3, name:"Kareem Nasser", avatar:"KN", role:"Medical Rep",  manager:"Walid Hamdan",   score:54, streak:3,  phase:2, workshopId:3 },
+  { id:4, name:"Lina Barakat",  avatar:"LB", role:"Team Leader",  manager:"Layla Mansour",  score:87, streak:18, phase:3, workshopId:2 },
+];
+
+const ASSIGNMENTS = [
+  { id:1, title:"Field Roleplay Recording",       traineeId:1, type:"audio",    status:"submitted",  dueDay:50, submittedDay:48, trainerRating:4, trainerNote:"Good structure. Still pitching too early. Work on patience." },
+  { id:2, title:"Implication Stage Written Plan", traineeId:1, type:"document", status:"pending",    dueDay:52, submittedDay:null, trainerRating:null, trainerNote:"" },
+  { id:3, title:"Dr. Visit Summary",              traineeId:2, type:"document", status:"submitted",  dueDay:51, submittedDay:49, trainerRating:5, trainerNote:"Excellent. Model example for the team." },
+  { id:4, title:"Objection Map Exercise",         traineeId:3, type:"document", status:"overdue",    dueDay:25, submittedDay:null, trainerRating:null, trainerNote:"" },
+];
+
+const MESSAGES = [
+  { id:1, from:"Shadi Obeidat", fromRole:"trainer", to:"Ahmad Khalil", text:"Ahmad, great effort on Day 47. Remember — the implication stage is where the sale is won, not at the pitch. Keep at it.", time:"2h ago", read:false },
+  { id:2, from:"Layla Mansour", fromRole:"manager", to:"Ahmad Khalil", text:"Joined your Dr. Hassan visit. Let's debrief tomorrow morning. I have some observations that will help.", time:"1d ago", read:true },
+  { id:3, from:"Shadi Obeidat", fromRole:"trainer", to:"Rana Haddad",  text:"Rana, your Day 49 reflection was exceptional. I'm sharing it (anonymously) with the group as a model.", time:"3h ago", read:false },
+];
+
+const QUIZ_QUESTIONS = [
+  { id:1, q:"What does the 'I' in SPIN stand for?", options:["Introduction","Implication","Investigation","Intention"], correct:1 },
+  { id:2, q:"Which stage comes BEFORE Implication in SPIN?", options:["Need-Payoff","Problem","Situation","Closing"], correct:1 },
+  { id:3, q:"A Need-Payoff question is designed to:", options:["Create urgency","Get the customer to state the value","Identify pain points","Close the deal"], correct:1 },
+];
+
+const REMINDERS = [
+  { id:1, day:7,  message:"Great start! Reflect on your first week — what changed in your approach?", sent:true },
+  { id:2, day:30, message:"You're at the 30-day mark. Submit your habit formation scorecard today.", sent:true },
+  { id:3, day:60, message:"Halfway through! Your manager will observe you this week — be intentional.", sent:false },
+];
+
+const MANAGER_OBSERVATIONS = [
+  { id:1, teamId:1, date:"Day 44", type:"Joint Visit",       rating:2, status:"needs-work", note:"Ahmad opened well but jumped to pitch after Q2. Did not use Implication stage. Coaching session scheduled Wednesday." },
+  { id:2, teamId:2, date:"Day 46", type:"Coaching Session",  rating:5, status:"excellent",  note:"Rana is applying SPIN naturally. Silence technique now embedded. Nominated as peer model." },
+  { id:3, teamId:4, date:"Day 45", type:"Coaching Session",  rating:4, status:"on-track",   note:"Lina used GROW model throughout. Team is noticing the shift. Milestone reached." },
+];
+
+// ── Notifications (per role) — the accountability loop ───────────────────────
+const NOTIFICATIONS = {
+  trainee: [
+    { id:"nt1", icon:"⭐", color:"#1A7A4A", title:"Assignment rated", body:"Shadi rated your Field Roleplay Recording — 4 stars with feedback.", time:"2h ago", read:false, action:"View feedback" },
+    { id:"nt2", icon:"📝", color:"#0891B2", title:"New quiz from your trainer", body:"SPIN Selling Quick Check — complete before Day 52.", time:"1d ago", read:false, action:"Take quiz" },
+    { id:"nt3", icon:"👔", color:"#D97706", title:"Manager observation logged", body:"Layla added a field observation from your joint visit on Day 44.", time:"3d ago", read:true, action:"View" },
+    { id:"nt4", icon:"📊", color:"#7C3AED", title:"Day 45 check-in due", body:"Your mid-journey self-assessment is ready. Takes 2 minutes.", time:"Today", read:false, action:"Start check-in" },
+  ],
+  trainer: [
+    { id:"nr1", icon:"📎", color:"#1A7A4A", title:"New submission", body:"Rana Haddad submitted Dr. Visit Summary — ready for your rating.", time:"1h ago", read:false, action:"Review now" },
+    { id:"nr2", icon:"⚠️", color:"#DC2626", title:"At-risk learner alert", body:"Kareem Nasser dropped below 60% (now 54%). Objection Map Exercise overdue 22 days.", time:"5h ago", read:false, action:"View learner" },
+    { id:"nr3", icon:"📉", color:"#D97706", title:"Quiz completion stalled", body:"3 of 18 learners haven't completed the SPIN quiz. Deadline is Day 52.", time:"1d ago", read:true, action:"Send reminder" },
+    { id:"nr4", icon:"✅", color:"#0891B2", title:"Baseline complete", body:"All 18 learners in SPIN Selling Mastery completed baseline assessment.", time:"6w ago", read:true, action:null },
+  ],
+  manager: [
+    { id:"nm1", icon:"📉", color:"#DC2626", title:"Score drop alert", body:"Ahmad Khalil's behavioral score dropped 6 points this week (78% → 72%).", time:"4h ago", read:false, action:"View Ahmad" },
+    { id:"nm2", icon:"🗓", color:"#D97706", title:"Observation due", body:"You haven't logged an observation for Rana Haddad in 14 days.", time:"1d ago", read:false, action:"Log observation" },
+    { id:"nm3", icon:"⭐", color:"#1A7A4A", title:"Trainer feedback posted", body:"Shadi rated Ahmad's roleplay 4/5 — 'still pitching too early'. Worth reinforcing in the field.", time:"2d ago", read:true, action:"View" },
+  ],
+  admin: [
+    { id:"na1", icon:"📊", color:"#1A7A4A", title:"Weekly client digest", body:"PharmaEdge: 72% avg score (+3), 2 at-risk learners, 89% quiz completion.", time:"Today", read:false, action:"View report" },
+    { id:"na2", icon:"⚠️", color:"#D97706", title:"Manager engagement low", body:"Walid Hamdan hasn't logged any observation in 30 days (1 direct report affected).", time:"2d ago", read:false, action:"Send nudge" },
+  ],
+};
+
+// ── Baseline / Check-in assessment (Day 0, 45, 90) ───────────────────────────
+const BASELINE_QUESTIONS = [
+  { id:"b1", text:"How often do you ask Situation questions before presenting?", low:"Rarely", high:"Every call" },
+  { id:"b2", text:"How confident are you using Implication questions?", low:"Not confident", high:"Very confident" },
+  { id:"b3", text:"How comfortable are you with silence in customer conversations?", low:"Very uncomfortable", high:"Fully comfortable" },
+  { id:"b4", text:"How often do customers state the value themselves (Need-Payoff)?", low:"Never", high:"Most calls" },
+  { id:"b5", text:"How structured is your approach to handling objections?", low:"Improvised", high:"Fully structured" },
+];
+
+// Ahmad's stored baseline (Day 0) — used for before/after comparison
+const BASELINE_DAY0 = { b1: 2, b2: 1, b3: 2, b4: 2, b5: 3 };
+
+// ── ROI Data (connects behavioral scores to business outcomes) ────────────────
+const ROI_DATA = {
+  1: {
+    repsCount: 18,
+    callsPerDay:     { baseline: 8.0, current: 9.4, target: 11.0 },
+    closingRate:     { baseline: 34,  current: 41,  target: 55 },
+    docEngagement:   { baseline: 3.1, current: 3.8, target: 4.5 },
+    behavioralScore: { baseline: 45,  current: 72,  target: 90 },
+    revenuePerCall:  160,
+    journeyLift: [
+      { title: "SPIN Selling Mastery",   score: 72, trend: 8,  reps: 18, liftPerRep: 3200 },
+      { title: "Objection Handling",     score: 84, trend: 14, reps: 9,  liftPerRep: 4800 },
+      { title: "Coaching Conversations", score: 61, trend: 5,  reps: 12, liftPerRep: 1600 },
+    ],
+  },
+};
+
+// ── Shared UI ─────────────────────────────────────────────────────────────────
+function Tag({ color, bg, children, small }) {
+  return <span style={{ background: bg || `${color}18`, color, fontSize: small ? 9 : 10, fontWeight: 700, padding: small ? "2px 6px" : "3px 9px", borderRadius: 6, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{children}</span>;
+}
+
+function Btn({ onClick, color = C.accent, outline, children, full, small, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{ width: full ? "100%" : "auto", padding: small ? "7px 13px" : "11px 18px", background: outline ? "transparent" : (disabled ? C.subtle : color), border: `1.5px solid ${outline ? C.border : color}`, borderRadius: 10, color: outline ? C.textSoft : C.white, fontSize: small ? 11 : 13, fontWeight: 700, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", opacity: disabled ? 0.5 : 1 }}>
+      {children}
+    </button>
+  );
+}
+
+function Card({ children, style }) {
+  return <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, boxShadow: C.shadow, ...style }}>{children}</div>;
+}
+
+function Ring({ pct, color, size = 48, stroke = 4, label }) {
+  const r = (size - stroke * 2) / 2, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.border} strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: label ? 10 : 11, fontWeight: 700, color: label ? C.text : color }}>{label || `${pct}%`}</div>
+    </div>
+  );
+}
+
+function PBar({ pct, color = C.accent, h = 6 }) {
+  return <div style={{ height: h, background: C.subtle, borderRadius: h, overflow: "hidden" }}><div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: h, transition: "width 0.8s" }} /></div>;
+}
+
+function Avatar({ initials, color = C.accent, size = 38 }) {
+  return <div style={{ width: size, height: size, borderRadius: "50%", background: `${color}18`, border: `1.5px solid ${color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.28, fontWeight: 700, color, flexShrink: 0 }}>{initials}</div>;
+}
+
+function SectionHead({ label, title, sub }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      {label && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>}
+      <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>{title}</div>
+      {sub && <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function StarRating({ value, onChange, size = 20 }) {
+  return (
+    <div style={{ display: "flex", gap: 4 }}>
+      {[1,2,3,4,5].map(s => (
+        <button key={s} onClick={() => onChange && onChange(s)}
+          style={{ background: "none", border: "none", cursor: onChange ? "pointer" : "default", fontSize: size, color: s <= value ? C.amber : C.border, padding: 0 }}>★</button>
+      ))}
+    </div>
+  );
+}
+
+// ── AI Coach Modal ────────────────────────────────────────────────────────────
+function AIModal({ onClose }) {
+  const [input, setInput] = useState("");
+  const [msgs, setMsgs] = useState([{ role: "assistant", text: "I've reviewed Ahmad's patterns. He understands SPIN conceptually but skips Implication questions under time pressure. What would you like to explore?" }]);
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const msg = input.trim(); setInput("");
+    setMsgs(m => [...m, { role: "user", text: msg }]); setLoading(true);
+    try {
+      const history = [...msgs, { role: "user", text: msg }];
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: "You are an AI Behavioral Coaching Engine. Context: Ahmad Khalil, pharma rep, Day 47 SPIN Selling journey, Phase 3. He rushes Implication questions. Be specific, direct, warm. Max 4 sentences. Ask one coaching question.", messages: history.map(m => ({ role: m.role, content: m.text })) }) });
+      const data = await res.json();
+      setMsgs(m => [...m, { role: "assistant", text: data.text || "Let me reflect on that." }]);
+    } catch { setMsgs(m => [...m, { role: "assistant", text: "Connection issue. Try again." }]); }
+    setLoading(false);
+  };
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", flexDirection: "column", background: C.bg, maxWidth: 430, margin: "0 auto" }}>
+      <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12, background: C.surface, boxShadow: C.shadow }}>
+        <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>←</button>
+        <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✦</div>
+        <div><div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>AI Coaching Engine</div><div style={{ fontSize: 11, color: C.accentMid }}>● Live · Ahmad Khalil · Day 47</div></div>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "18px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {msgs.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 8, alignItems: "flex-end" }}>
+            {m.role === "assistant" && <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.accentSoft, border: `1px solid ${C.accentLight}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>✦</div>}
+            <div style={{ maxWidth: "80%", padding: "11px 14px", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", background: m.role === "user" ? `linear-gradient(135deg,${C.accent},${C.accentMid})` : C.white, border: m.role === "assistant" ? `1px solid ${C.border}` : "none", fontSize: 13, lineHeight: 1.65, color: m.role === "user" ? C.white : C.text, boxShadow: C.shadow }}>{m.text}</div>
+          </div>
+        ))}
+        {loading && <div style={{ display: "flex", gap: 5, padding: "11px 14px", background: C.white, borderRadius: "16px 16px 16px 4px", width: 72, border: `1px solid ${C.border}` }}>{[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: C.accentLight, animation: `dot 1.2s ${i*.2}s infinite` }} />)}</div>}
+        <div ref={endRef} />
+      </div>
+      <div style={{ padding: "12px 16px 24px", borderTop: `1px solid ${C.border}`, background: C.surface, display: "flex", gap: 10 }}>
+        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask about behavioral patterns…" style={{ flex: 1, background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 24, padding: "11px 16px", color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+        <button onClick={send} disabled={loading} style={{ width: 44, height: 44, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentMid})`, border: "none", color: C.white, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS PANEL — the accountability loop (Priority 1)
+// ════════════════════════════════════════════════════════════════════════
+function NotificationsPanel({ items, onUpdate, onClose }) {
+  const unread = items.filter(n => !n.read).length;
+
+  const markAll = () => onUpdate(items.map(n => ({ ...n, read: true })));
+  const markOne = (id) => onUpdate(items.map(n => n.id === id ? { ...n, read: true } : n));
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 280, maxWidth: 430, margin: "0 auto" }}>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(15,36,23,0.35)", backdropFilter: "blur(2px)" }} />
+      {/* Sheet */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, background: C.bg, borderRadius: "0 0 24px 24px", maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.18)", animation: "slideDown 0.25s ease" }}>
+        {/* Header */}
+        <div style={{ padding: "16px 18px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.border}`, background: C.white, borderRadius: "0 0 0 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Notifications</div>
+            {unread > 0 && <div style={{ padding: "2px 9px", background: C.rose, borderRadius: 12, fontSize: 10, fontWeight: 700, color: C.white }}>{unread} new</div>}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {unread > 0 && (
+              <button onClick={markAll} style={{ padding: "5px 11px", background: C.accentSoft2, border: `1px solid ${C.accentLight}55`, borderRadius: 9, fontSize: 11, fontWeight: 700, color: C.accent, cursor: "pointer" }}>Mark all read</button>
+            )}
+            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 14, cursor: "pointer" }}>✕</button>
+          </div>
+        </div>
+
+        {/* List */}
+        <div style={{ overflowY: "auto", padding: "12px 14px 20px" }}>
+          {items.length === 0 && (
+            <div style={{ padding: "36px 20px", textAlign: "center", color: C.muted }}>
+              <div style={{ fontSize: 30, marginBottom: 10 }}>🔔</div>
+              <div style={{ fontSize: 13 }}>You're all caught up.</div>
+            </div>
+          )}
+          {items.map(n => (
+            <button key={n.id} onClick={() => markOne(n.id)}
+              style={{ width: "100%", textAlign: "left", padding: 0, background: "none", border: "none", cursor: "pointer", marginBottom: 9 }}>
+              <div style={{ background: n.read ? C.white : `${n.color}08`, border: `1.5px solid ${n.read ? C.border : n.color + "44"}`, borderRadius: 14, padding: "13px 14px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: C.shadow, position: "relative" }}>
+                {!n.read && <div style={{ position: "absolute", top: 13, right: 13, width: 8, height: 8, borderRadius: "50%", background: n.color }} />}
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: `${n.color}14`, border: `1px solid ${n.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{n.icon}</div>
+                <div style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 2 }}>{n.title}</div>
+                  <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55 }}>{n.body}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 7 }}>
+                    <span style={{ fontSize: 10, color: C.muted }}>{n.time}</span>
+                    {n.action && <span style={{ fontSize: 11, fontWeight: 700, color: n.color }}>{n.action} →</span>}
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// BASELINE CHECK-IN — Day 0 / 45 / 90 self-assessment (Priority 2)
+// ════════════════════════════════════════════════════════════════════════
+function BaselineCheckIn({ journeyColor }) {
+  // stage: "prompt" → "form" → "done"
+  const [stage, setStage] = useState("prompt");
+  const [answers, setAnswers] = useState({});
+  const [qIndex, setQIndex] = useState(0);
+
+  const q = BASELINE_QUESTIONS[qIndex];
+  const allAnswered = Object.keys(answers).length === BASELINE_QUESTIONS.length;
+
+  const avgBefore = Object.values(BASELINE_DAY0).reduce((a, b) => a + b, 0) / BASELINE_QUESTIONS.length;
+  const avgNow = allAnswered ? Object.values(answers).reduce((a, b) => a + b, 0) / BASELINE_QUESTIONS.length : 0;
+
+  // ── Prompt card ──
+  if (stage === "prompt") {
+    return (
+      <Card style={{ padding: "16px", marginBottom: 14, border: `1.5px solid ${C.purple}44`, background: `linear-gradient(135deg, ${C.purpleSoft} 0%, ${C.white} 70%)` }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 13, background: `${C.purple}15`, border: `1.5px solid ${C.purple}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, flexShrink: 0 }}>📊</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Day 45 Check-In Due</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>5 questions · 2 minutes · compares against your Day 0 baseline</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <Btn full color={C.purple} onClick={() => setStage("form")}>Start Check-In</Btn>
+          <Btn outline onClick={() => setStage("dismissed")}>Later</Btn>
+        </div>
+      </Card>
+    );
+  }
+
+  if (stage === "dismissed") {
+    return (
+      <button onClick={() => setStage("prompt")} style={{ width: "100%", padding: "10px 14px", background: C.purpleSoft, border: `1px dashed ${C.purple}44`, borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 700, color: C.purple, marginBottom: 14, textAlign: "center" }}>
+        📊 Day 45 Check-In pending — tap to resume
+      </button>
+    );
+  }
+
+  // ── Question-by-question form ──
+  if (stage === "form") {
+    return (
+      <Card style={{ padding: "18px", marginBottom: 14, border: `1.5px solid ${C.purple}55` }}>
+        {/* Progress */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, letterSpacing: "0.07em" }}>DAY 45 CHECK-IN</div>
+          <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{qIndex + 1} / {BASELINE_QUESTIONS.length}</div>
+        </div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 18 }}>
+          {BASELINE_QUESTIONS.map((_, i) => (
+            <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < qIndex || answers[BASELINE_QUESTIONS[i].id] ? C.purple : C.border, opacity: i === qIndex ? 1 : 0.5 }} />
+          ))}
+        </div>
+
+        {/* Question */}
+        <div style={{ fontSize: 15, fontWeight: 700, color: C.text, lineHeight: 1.45, marginBottom: 16, fontFamily: "'DM Serif Display',serif" }}>{q.text}</div>
+
+        {/* 1–5 scale */}
+        <div style={{ display: "flex", gap: 7, marginBottom: 8 }}>
+          {[1, 2, 3, 4, 5].map(v => {
+            const selected = answers[q.id] === v;
+            return (
+              <button key={v} onClick={() => setAnswers({ ...answers, [q.id]: v })}
+                style={{ flex: 1, padding: "14px 4px", background: selected ? `${C.purple}18` : C.subtle, border: `2px solid ${selected ? C.purple : C.border}`, borderRadius: 12, cursor: "pointer", fontSize: 16, fontWeight: 800, color: selected ? C.purple : C.muted, transition: "all 0.12s" }}>
+                {v}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+          <span style={{ fontSize: 10, color: C.muted }}>{q.low}</span>
+          <span style={{ fontSize: 10, color: C.muted }}>{q.high}</span>
+        </div>
+
+        {/* Nav */}
+        <div style={{ display: "flex", gap: 8 }}>
+          {qIndex > 0 && <Btn outline onClick={() => setQIndex(qIndex - 1)}>← Back</Btn>}
+          {qIndex < BASELINE_QUESTIONS.length - 1 ? (
+            <Btn full color={C.purple} disabled={!answers[q.id]} onClick={() => answers[q.id] && setQIndex(qIndex + 1)}>Next →</Btn>
+          ) : (
+            <Btn full color={C.purple} disabled={!allAnswered} onClick={() => allAnswered && setStage("done")}>Complete Check-In</Btn>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Before/After results ──
+  return (
+    <Card style={{ padding: "18px", marginBottom: 14, border: `1.5px solid ${C.purple}44` }}>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 30, marginBottom: 6 }}>📈</div>
+        <div style={{ fontSize: 16, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Your Growth Since Day 0</div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>Average: {avgBefore.toFixed(1)} → <span style={{ color: C.accent, fontWeight: 700 }}>{avgNow.toFixed(1)}</span> {avgNow > avgBefore ? `(+${(avgNow - avgBefore).toFixed(1)})` : ""}</div>
+      </div>
+
+      {BASELINE_QUESTIONS.map(bq => {
+        const before = BASELINE_DAY0[bq.id];
+        const now = answers[bq.id];
+        const delta = now - before;
+        return (
+          <div key={bq.id} style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, gap: 10 }}>
+              <span style={{ fontSize: 12, color: C.text, fontWeight: 600, lineHeight: 1.4, flex: 1 }}>{bq.text}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: delta > 0 ? C.accent : delta < 0 ? C.rose : C.muted, flexShrink: 0 }}>
+                {delta > 0 ? `+${delta}` : delta}
+              </span>
+            </div>
+            {/* Before */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 9, color: C.muted, width: 38, flexShrink: 0 }}>Day 0</span>
+              <div style={{ flex: 1, height: 6, background: C.subtle, borderRadius: 3 }}>
+                <div style={{ width: `${(before / 5) * 100}%`, height: "100%", background: C.muted + "77", borderRadius: 3 }} />
+              </div>
+              <span style={{ fontSize: 10, color: C.muted, width: 14, textAlign: "right" }}>{before}</span>
+            </div>
+            {/* Now */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 9, color: C.purple, fontWeight: 700, width: 38, flexShrink: 0 }}>Day 45</span>
+              <div style={{ flex: 1, height: 6, background: C.subtle, borderRadius: 3 }}>
+                <div style={{ width: `${(now / 5) * 100}%`, height: "100%", background: `linear-gradient(90deg,${C.purple},${C.accent})`, borderRadius: 3 }} />
+              </div>
+              <span style={{ fontSize: 10, color: C.purple, fontWeight: 700, width: 14, textAlign: "right" }}>{now}</span>
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ padding: "10px 13px", background: C.accentSoft, borderRadius: 10, border: `1px solid ${C.accentLight}44`, marginTop: 4 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, marginBottom: 4 }}>✦ WHAT THIS MEANS</div>
+        <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.6 }}>
+          Your results are shared with your trainer and manager to focus coaching where it matters. Next check-in: Day 90.
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LOGIN / ROLE PORTAL
+// ════════════════════════════════════════════════════════════════════════
+function LoginScreen({ onLogin }) {
+  const roles = [
+    { key: "admin",   label: "Admin",            sub: "Manage company, users & settings",   icon: "🏢", color: C.purple },
+    { key: "trainer", label: "Trainer",           sub: "Workshops, assignments & reports",   icon: "🎓", color: C.accent },
+    { key: "trainee", label: "Trainee",           sub: "My journey, tasks & reflections",    icon: "👤", color: C.teal  },
+    { key: "manager", label: "Business Manager",  sub: "Team progress & field follow-up",    icon: "👔", color: C.amber },
+  ];
+  return (
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.bg} 0%,#DBEEDD 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 20px" }}>
+      {/* Logo */}
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <div style={{ width: 64, height: 64, borderRadius: 20, background: `linear-gradient(135deg,${C.accent},${C.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 14px", boxShadow: C.shadowMd }}>◈</div>
+        <div style={{ fontSize: 26, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Behavioral Reinforcement</div>
+        <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>Post-Training Transformation Platform</div>
+        <div style={{ display: "inline-block", marginTop: 10, padding: "5px 14px", background: C.accentSoft2, border: `1px solid ${C.accentLight}55`, borderRadius: 20, fontSize: 11, color: C.accent, fontWeight: 700 }}>PharmaEdge Middle East · Demo</div>
+      </div>
+
+      {/* Role cards */}
+      <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.muted, textAlign: "center", marginBottom: 4 }}>ENTER AS</div>
+        {roles.map(r => (
+          <button key={r.key} onClick={() => onLogin(r.key)}
+            style={{ padding: "16px 18px", background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left", boxShadow: C.shadow, transition: "all 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = r.color; e.currentTarget.style.background = `${r.color}08`; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = C.white; }}>
+            <div style={{ width: 46, height: 46, borderRadius: 14, background: `${r.color}15`, border: `1.5px solid ${r.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{r.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{r.label}</div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{r.sub}</div>
+            </div>
+            <div style={{ color: r.color, fontSize: 20, opacity: 0.5 }}>›</div>
+          </button>
+        ))}
+      </div>
+      <div style={{ marginTop: 28, fontSize: 11, color: C.muted, textAlign: "center" }}>Demo Mode · No login required · Tap any role to enter</div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ADMIN SECTION
+// ════════════════════════════════════════════════════════════════════════
+function AdminSection() {
+  const [tab, setTab] = useState("clients");
+  const [selectedClient, setSelectedClient] = useState(1);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const tabs = [{ id: "clients", label: "Clients" }, { id: "users", label: "Users" }, { id: "journeys", label: "Journeys" }, { id: "roi", label: "ROI" }, { id: "settings", label: "Settings" }];
+  const client = CLIENTS.find(c => c.id === selectedClient);
+  const clientJourneys = JOURNEYS.filter(j => j.clientId === selectedClient);
+
+  return (
+    <div style={{ paddingBottom: 100 }}>
+      <div style={{ padding: "20px 16px 0", background: C.white, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: C.muted, marginBottom: 3 }}>ADMIN PANEL</div>
+        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text, marginBottom: 14 }}>Client & Programme Management</div>
+        <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{ padding: "9px 16px", background: "none", border: "none", borderBottom: `2.5px solid ${tab === t.id ? C.accent : "transparent"}`, color: tab === t.id ? C.accent : C.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "20px 16px" }}>
+
+        {/* ── CLIENTS ── */}
+        {tab === "clients" && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 12 }}>CLIENT COMPANIES</div>
+
+            {/* Client selector cards */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+              {CLIENTS.map(cl => (
+                <button key={cl.id} onClick={() => setSelectedClient(cl.id)}
+                  style={{ padding: "15px 16px", background: selectedClient === cl.id ? C.accentSoft2 : C.white, border: `1.5px solid ${selectedClient === cl.id ? C.accent : C.border}`, borderRadius: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 13, textAlign: "left", boxShadow: C.shadow }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: `${C.accent}15`, border: `1.5px solid ${C.accentLight}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: C.accent, flexShrink: 0 }}>{cl.logo}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{cl.name}</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{cl.industry} · {cl.country}</div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    <Tag color={cl.status === "active" ? C.accent : C.amber}>{cl.status}</Tag>
+                    <div style={{ fontSize: 10, color: C.muted }}>{cl.journeys.length} journeys</div>
+                  </div>
+                </button>
+              ))}
+              <button onClick={() => setShowAddClient(!showAddClient)}
+                style={{ padding: "13px 16px", background: C.accentSoft, border: `1.5px dashed ${C.accentLight}`, borderRadius: 14, cursor: "pointer", color: C.accent, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                + Add New Client
+              </button>
+            </div>
+
+            {/* Selected client detail */}
+            {client && (
+              <div>
+                {/* Header card */}
+                <Card style={{ padding: "18px", marginBottom: 14 }}>
+                  <div style={{ display: "flex", gap: 13, alignItems: "center", marginBottom: 16 }}>
+                    <div style={{ width: 52, height: 52, borderRadius: 14, background: `${C.accent}15`, border: `2px solid ${C.accentLight}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: C.accent, flexShrink: 0 }}>{client.logo}</div>
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>{client.name}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>{client.industry} · {client.country} · {client.size}</div>
+                      <div style={{ marginTop: 5 }}><Tag color={C.accent}>Active Contract: {client.contractStart} – {client.contractEnd}</Tag></div>
+                    </div>
+                  </div>
+
+                  <div style={{ height: 1, background: C.border, marginBottom: 14 }} />
+
+                  {/* Contact person */}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 10 }}>L&D POINT OF CONTACT</div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
+                    <Avatar initials={client.contact.split(" ").map(w=>w[0]).join("")} color={C.accent} size={40} />
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{client.contact}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{client.contactTitle}</div>
+                      <div style={{ fontSize: 11, color: C.teal, marginTop: 2 }}>✉ {client.contactEmail}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>📞 {client.phone}</div>
+                    </div>
+                  </div>
+
+                  {/* Internal notes */}
+                  <div style={{ padding: "11px 13px", background: C.amberSoft, borderRadius: 10, border: `1px solid ${C.amber}33` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.amber, letterSpacing: "0.07em", marginBottom: 5 }}>📋 TRAINER NOTES</div>
+                    <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.65 }}>{client.notes}</div>
+                  </div>
+                </Card>
+
+                {/* Journey summary for this client */}
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>TRAINING JOURNEYS FOR THIS CLIENT</div>
+                {clientJourneys.length === 0 ? (
+                  <Card style={{ padding: "20px", textAlign: "center" }}>
+                    <div style={{ fontSize: 13, color: C.muted }}>No journeys scheduled yet.</div>
+                  </Card>
+                ) : (
+                  clientJourneys.map(j => (
+                    <Card key={j.id} style={{ padding: "14px 16px", marginBottom: 10, display: "flex", gap: 12, alignItems: "center" }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: `${j.color}15`, border: `1.5px solid ${j.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{j.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Journey {j.number}: {j.title}</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{j.startDate} – {j.endDate} · {j.facilitator}</div>
+                      </div>
+                      <Tag color={j.status === "active" ? C.accent : j.status === "upcoming" ? C.teal : C.muted}>
+                        {j.status === "active" ? `Day ${j.day}` : j.status}
+                      </Tag>
+                    </Card>
+                  ))
+                )}
+
+                {/* Stats for this client */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
+                  {[
+                    { label: "Active Journeys", val: clientJourneys.filter(j=>j.status==="active").length.toString(), color: C.accent },
+                    { label: "Total Learners", val: "39", color: C.teal },
+                    { label: "Avg. Score", val: "72%", color: C.amber },
+                    { label: "Completion", val: "78%", color: C.purple },
+                  ].map((k, i) => (
+                    <Card key={i} style={{ padding: "13px 15px", position: "relative", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: k.color }} />
+                      <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>{k.label}</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: k.color }}>{k.val}</div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── USERS ── */}
+        {tab === "users" && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 12 }}>ALL USERS</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {TEAM.map(u => (
+                <Card key={u.id} style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <Avatar initials={u.avatar} color={C.accent} size={38} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>{u.role} · Manager: {u.manager}</div>
+                  </div>
+                  <Tag color={C.teal}>Journey {u.workshopId}</Tag>
+                </Card>
+              ))}
+              {[{ name: "Shadi Obeidat", role: "Trainer", ws: "Journeys 1 & 3" }, { name: "Sara Al-Najjar", role: "Trainer", ws: "Journey 2" }, { name: "Layla Mansour", role: "District Manager", ws: "—" }].map((u, i) => (
+                <Card key={`staff-${i}`} style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <Avatar initials={u.name.split(" ").map(w => w[0]).join("")} color={C.purple} size={38} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>{u.role} · {u.ws}</div>
+                  </div>
+                  <Tag color={C.purple}>{u.role}</Tag>
+                </Card>
+              ))}
+            </div>
+            <div style={{ marginTop: 14 }}><Btn full color={C.accent}>+ Add New User</Btn></div>
+          </div>
+        )}
+
+        {/* ── JOURNEYS ── */}
+        {tab === "journeys" && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 12 }}>ALL TRAINING JOURNEYS</div>
+            {JOURNEYS.map(j => (
+              <Card key={j.id} style={{ padding: "16px", marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div style={{ display: "flex", gap: 11, alignItems: "center", flex: 1, paddingRight: 10 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 11, background: `${j.color}15`, border: `1.5px solid ${j.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{j.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: j.color, letterSpacing: "0.06em" }}>JOURNEY {j.number}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.25 }}>{j.title}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{j.facilitator} · {j.startDate} – {j.endDate}</div>
+                    </div>
+                  </div>
+                  <Tag color={j.status === "active" ? C.accent : j.status === "upcoming" ? C.teal : C.muted}>{j.status}</Tag>
+                </div>
+                {j.status === "active" && (
+                  <>
+                    <PBar pct={Math.round((j.day / j.total) * 100)} color={j.color} />
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                      <span style={{ fontSize: 10, color: C.muted }}>Day {j.day} of {j.total}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: j.color }}>{j.score}% behavioral score</span>
+                    </div>
+                  </>
+                )}
+                {j.status !== "active" && (
+                  <div style={{ padding: "8px 12px", background: C.subtle, borderRadius: 9, fontSize: 12, color: C.muted }}>
+                    {j.status === "upcoming" ? `Starts ${j.startDate}` : `Planned · ${j.startDate}`}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* ── ROI DASHBOARD ── */}
+        {tab === "roi" && (() => {
+          const roi = ROI_DATA[1];
+          const totalLift = roi.journeyLift.reduce((s, j) => s + j.liftPerRep * j.reps, 0);
+          const scoreDelta = roi.behavioralScore.current - roi.behavioralScore.baseline;
+          const scoreToTarget = roi.behavioralScore.target - roi.behavioralScore.baseline;
+          const progressPct = Math.round((scoreDelta / scoreToTarget) * 100);
+          return (
+            <div>
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", marginBottom: 2 }}>ROI DASHBOARD</div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Behavior → Business Impact</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>PharmaEdge Middle East · SPIN Selling cohort · 18 reps</div>
+              </div>
+
+              {/* Hero metric */}
+              <Card style={{ padding: "20px", marginBottom: 14, background: `linear-gradient(135deg,${C.accentSoft} 0%,${C.white} 70%)`, border: `1.5px solid ${C.accentLight}55` }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 6 }}>ESTIMATED MONTHLY REVENUE LIFT</div>
+                <div style={{ fontSize: 36, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.accent }}>${totalLift.toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Across all active journeys · {roi.repsCount} reps total</div>
+                <div style={{ height: 1, background: C.border, margin: "14px 0" }} />
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 8 }}>BEHAVIORAL PROGRESS TOWARD TARGET</div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                  <span style={{ fontSize: 11, color: C.muted }}>Day 0 baseline: {roi.behavioralScore.baseline}%</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.accent }}>Now: {roi.behavioralScore.current}% → Target: {roi.behavioralScore.target}%</span>
+                </div>
+                <PBar pct={progressPct} color={C.accent} h={8} />
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 5 }}>{progressPct}% of the way to full behavioral adoption</div>
+              </Card>
+
+              {/* Key field metrics */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>KEY FIELD METRICS</div>
+              {[
+                { label: "Daily calls per rep",       unit: "calls/day", baseline: roi.callsPerDay.baseline.toFixed(1),   current: roi.callsPerDay.current.toFixed(1),   target: roi.callsPerDay.target.toFixed(1),   pct: Math.round(((roi.callsPerDay.current - roi.callsPerDay.baseline) / (roi.callsPerDay.target - roi.callsPerDay.baseline)) * 100), color: C.teal },
+                { label: "Objection-to-close rate",   unit: "%",         baseline: `${roi.closingRate.baseline}%`,         current: `${roi.closingRate.current}%`,         target: `${roi.closingRate.target}%`,         pct: Math.round(((roi.closingRate.current - roi.closingRate.baseline) / (roi.closingRate.target - roi.closingRate.baseline)) * 100), color: C.amber },
+                { label: "Doctor engagement score",   unit: "/5",        baseline: `${roi.docEngagement.baseline.toFixed(1)}/5`, current: `${roi.docEngagement.current.toFixed(1)}/5`, target: `${roi.docEngagement.target.toFixed(1)}/5`, pct: Math.round(((roi.docEngagement.current - roi.docEngagement.baseline) / (roi.docEngagement.target - roi.docEngagement.baseline)) * 100), color: C.purple },
+              ].map((m, i) => (
+                <Card key={i} style={{ padding: "14px 16px", marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{m.label}</div>
+                    <div style={{ fontSize: 10, color: C.muted }}>{m.pct}% of target gap closed</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    {[{ l: "Baseline", v: m.baseline, c: C.muted }, { l: "Now", v: m.current, c: m.color }, { l: "Target", v: m.target, c: C.text }].map((s, j) => (
+                      <div key={j} style={{ flex: 1, padding: "8px 6px", background: j === 1 ? `${m.color}12` : C.subtle, border: j === 1 ? `1.5px solid ${m.color}44` : `1px solid ${C.border}`, borderRadius: 9, textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: C.muted, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>{s.l}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: s.c, fontFamily: "'DM Serif Display',serif" }}>{s.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <PBar pct={m.pct} color={m.color} h={5} />
+                </Card>
+              ))}
+
+              {/* Per-journey lift breakdown */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10, marginTop: 6 }}>PER-JOURNEY LIFT CONTRIBUTION</div>
+              {roi.journeyLift.map((j, i) => {
+                const lift = j.liftPerRep * j.reps;
+                const pct = Math.round((lift / totalLift) * 100);
+                const scoreColor = j.score >= 80 ? C.accent : j.score >= 65 ? C.teal : C.amber;
+                return (
+                  <Card key={i} style={{ padding: "14px 16px", marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                      <div style={{ flex: 1, paddingRight: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 2 }}>{j.title}</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{j.reps} reps · Score: {j.score}% (+{j.trend}% this month)</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: scoreColor }}>${lift.toLocaleString()}</div>
+                        <div style={{ fontSize: 9, color: C.muted }}>{pct}% of total lift</div>
+                      </div>
+                    </div>
+                    <PBar pct={pct} color={scoreColor} h={4} />
+                  </Card>
+                );
+              })}
+
+              <Card style={{ padding: "12px 14px", background: C.subtle, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.7 }}>
+                  ✦ Lift estimate: additional daily calls × $160/call × rep count. Behavioral score determines call quality multiplier. At full adoption (90%), estimated lift reaches <strong style={{ color: C.accent }}>$138,000/month</strong>.
+                </div>
+              </Card>
+            </div>
+          );
+        })()}
+
+        {/* ── SETTINGS ── */}
+        {tab === "settings" && (
+          <Card style={{ padding: "18px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 16 }}>SYSTEM SETTINGS</div>
+            {[{ label: "Email Notifications", value: "Enabled" }, { label: "AI Coaching Engine", value: "Active" }, { label: "Report Visibility", value: "Trainer Only" }, { label: "Assignment Upload Limit", value: "50 MB" }, { label: "Max Behavioral Expectations", value: "3–4 per journey" }].map((s, i, arr) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                <div style={{ fontSize: 13, color: C.text }}>{s.label}</div>
+                <Tag color={C.accent}>{s.value}</Tag>
+              </div>
+            ))}
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// TRAINER SECTION
+// ════════════════════════════════════════════════════════════════════════
+function TrainerSection() {
+  const [tab, setTab] = useState("workshops");
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [showReminder, setShowReminder] = useState(false);
+  const [reminderText, setReminderText] = useState("");
+  const [quizSent, setQuizSent] = useState(false);
+  const [reminderSent, setReminderSent] = useState(false);
+  const [selectedWs, setSelectedWs] = useState(1);
+  const [ratings, setRatings] = useState({ 1: 4, 3: 5 });
+  const [ratingNotes, setRatingNotes] = useState({ 1: ASSIGNMENTS[0].trainerNote, 2: "" });
+  const [activeAsgn, setActiveAsgn] = useState(null);
+  const [selectedJourney, setSelectedJourney] = useState(null);
+
+  const me = { name: "Shadi Obeidat" };
+  const myWorkshops = WORKSHOPS;
+  const ws = myWorkshops.find(w => w.id === selectedWs);
+
+  const tabs = [{ id: "workshops", l: "Journeys" }, { id: "assignments", l: "Assignments" }, { id: "messages", l: "Messages" }, { id: "reports", l: "Reports" }];
+
+  const statusStyle = {
+    active:    { color: C.accent, bg: C.accentSoft2, label: "Active"    },
+    upcoming:  { color: C.teal,   bg: C.tealSoft,    label: "Upcoming"  },
+    planned:   { color: C.muted,  bg: C.subtle,      label: "Planned"   },
+    completed: { color: C.purple, bg: C.purpleSoft,  label: "Completed" },
+  };
+
+  const jTabs = [
+    { id: "overview",    icon: "◎",  label: "Overview"    },
+    { id: "materials",   icon: "📁", label: "Materials"   },
+    { id: "assignments", icon: "📋", label: "Assignments" },
+    { id: "quiz",        icon: "📝", label: "Quiz"        },
+    { id: "messages",    icon: "💬", label: "Messages"    },
+  ];
+
+  // Journey detail drill-in for trainer
+  if (selectedJourney && tab === "workshops") {
+    const j = JOURNEYS.find(x => x.id === selectedJourney);
+    const jws = WORKSHOPS.find(w => w.id === j.workshopId);
+    const ss = statusStyle[j.status];
+    return (
+      <JourneyDetailView
+        j={j} ws={jws} ss={ss} jTabs={jTabs}
+        objectives={null} setObjectives={null}
+        quizAnswers={{}} setQuizAnswers={() => {}}
+        quizDone={false} setQuizDone={() => {}}
+        myAssignments={ASSIGNMENTS} me={me}
+        onBack={() => setSelectedJourney(null)}
+        role="trainer"
+      />
+    );
+  }
+
+  return (
+    <div style={{ paddingBottom: 100 }}>
+      <div style={{ padding: "18px 16px 0", background: C.white, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <Avatar initials="SO" color={C.accent} size={36} />
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Shadi Obeidat</div>
+            <div style={{ fontSize: 11, color: C.accentMid }}>🎓 Senior Trainer</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{ padding: "9px 14px", background: "none", border: "none", borderBottom: `2.5px solid ${tab === t.id ? C.accent : "transparent"}`, color: tab === t.id ? C.accent : C.muted, fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 16px" }}>
+
+        {/* ── WORKSHOPS / JOURNEYS ── */}
+        {tab === "workshops" && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 2 }}>TRAINER VIEW</div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>My Journeys</div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Tap a journey to manage assignments, quizzes and messages.</div>
+            </div>
+
+            {JOURNEYS.map(j => {
+              const ss = statusStyle[j.status];
+              return (
+                <button key={j.id} onClick={() => setSelectedJourney(j.id)}
+                  style={{ width: "100%", marginBottom: 12, padding: 0, background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>
+                  <Card style={{ padding: "16px", borderLeft: `4px solid ${j.color}`, position: "relative" }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 12, background: `${j.color}12`, border: `1.5px solid ${j.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{j.icon}</div>
+                      <div style={{ flex: 1, paddingRight: 30 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: j.color, letterSpacing: "0.08em", marginBottom: 2 }}>JOURNEY {j.number}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text, lineHeight: 1.2 }}>{j.title}</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{j.facilitator} · {j.startDate} – {j.endDate} · {j.attendees || TEAM.filter(t=>t.workshopId===j.workshopId).length} learners</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: j.status === "active" ? 10 : 0 }}>
+                      <div style={{ padding: "4px 10px", background: ss.bg, borderRadius: 20, fontSize: 10, fontWeight: 700, color: ss.color }}>{ss.label}</div>
+                      {j.status === "active" && <span style={{ fontSize: 11, fontWeight: 700, color: j.color }}>{j.score}% score</span>}
+                      {j.status !== "active" && <span style={{ fontSize: 11, color: C.muted }}>Starts {j.startDate}</span>}
+                    </div>
+                    {j.status === "active" && (
+                      <>
+                        <PBar pct={Math.round((j.day/j.total)*100)} color={j.color} h={5} />
+                        <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Day {j.day} of {j.total}</div>
+                      </>
+                    )}
+                    <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: j.color, fontSize: 18, opacity: 0.4 }}>›</div>
+                  </Card>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── ASSIGNMENTS ── */}
+        {tab === "assignments" && (
+          <div>
+            <SectionHead label="Trainer" title="All Assignments" sub="Across all journeys — review, rate, reply." />
+            {ASSIGNMENTS.map(a => {
+              const trainee = TEAM.find(t => t.id === a.traineeId);
+              const statusColor = a.status === "submitted" ? C.accent : a.status === "overdue" ? C.rose : C.amber;
+              const isOpen = activeAsgn === a.id;
+              return (
+                <Card key={a.id} style={{ marginBottom: 10, overflow: "hidden" }}>
+                  <div style={{ height: 3, background: statusColor }} />
+                  <div style={{ padding: "14px 15px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div style={{ flex: 1, paddingRight: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.title}</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{trainee?.name} · Due Day {a.dueDay}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <Tag color={statusColor}>{a.status}</Tag>
+                        <button onClick={() => setActiveAsgn(isOpen ? null : a.id)}
+                          style={{ background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 7, padding: "3px 8px", fontSize: 12, cursor: "pointer", color: C.muted }}>
+                          {isOpen ? "▲" : "▼"}
+                        </button>
+                      </div>
+                    </div>
+                    {a.status === "submitted" && !isOpen && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <StarRating value={ratings[a.id] || a.trainerRating || 0} />
+                        <span style={{ fontSize: 11, color: C.muted }}>Rated</span>
+                      </div>
+                    )}
+                    {isOpen && (
+                      <div>
+                        {a.status === "submitted" ? (
+                          <div>
+                            <div style={{ padding: "10px 12px", background: C.accentSoft, borderRadius: 10, border: `1px solid ${C.accentLight}44`, marginBottom: 10, fontSize: 12, color: C.textSoft }}>
+                              <div style={{ fontWeight: 700, color: C.accent, marginBottom: 4 }}>📎 Submitted Day {a.submittedDay}</div>
+                              <div>[{a.type === "audio" ? "🎙 Audio" : a.type === "document" ? "📄 Document" : "🖼 Image"} attached]</div>
+                            </div>
+                            <StarRating value={ratings[a.id] || a.trainerRating || 0} onChange={v => setRatings({ ...ratings, [a.id]: v })} />
+                            <textarea value={ratingNotes[a.id] ?? a.trainerNote} onChange={e => setRatingNotes({ ...ratingNotes, [a.id]: e.target.value })} rows={2}
+                              placeholder="Feedback note…" style={{ width: "100%", background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 12px", fontSize: 12, color: C.text, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6, marginTop: 8 }} />
+                            <div style={{ marginTop: 8 }}><Btn small color={C.accent}>Save Feedback</Btn></div>
+                          </div>
+                        ) : (
+                          <div style={{ padding: "10px 12px", background: a.status === "overdue" ? C.roseSoft : C.amberSoft, borderRadius: 10, fontSize: 12, color: a.status === "overdue" ? C.rose : C.amber, fontWeight: 600 }}>
+                            {a.status === "overdue" ? "⛔ Overdue — send a reminder" : "⏳ Awaiting submission"}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── MESSAGES ── */}
+        {tab === "messages" && <MessagingPanel role="trainer" userName="Shadi Obeidat" />}
+
+        {/* ── REPORTS ── */}
+        {tab === "reports" && (
+          <div>
+            <SectionHead label="Trainer Only" title="Reports" sub="Analytics visible only to you." />
+            {WORKSHOPS.map(w => (
+              <Card key={w.id} style={{ padding: "16px", marginBottom: 12 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 10 }}>{w.title}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                  {[{ l: "Score", v: `${w.score}%`, c: C.accent }, { l: "Growth", v: `+${w.trend}%`, c: C.accentMid }, { l: "Learners", v: w.attendees, c: C.teal }, { l: "Phase", v: `${w.phase}/4`, c: C.amber }].map((s, i) => (
+                    <div key={i} style={{ padding: "10px 12px", background: C.subtle, borderRadius: 10 }}>
+                      <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>{s.l}</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: s.c, fontFamily: "'DM Serif Display',serif" }}>{s.v}</div>
+                    </div>
+                  ))}
+                </div>
+                <PBar pct={w.score} color={C.accent} />
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: "right" }}>Behavioral adoption rate</div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SHARED MESSAGING PANEL
+// ════════════════════════════════════════════════════════════════════════
+function MessagingPanel({ role, userName }) {
+  const [newMsg, setNewMsg] = useState("");
+  const [sent, setSent] = useState(false);
+  const myMessages = MESSAGES.filter(m => m.from === userName || m.to === userName || role === "trainer");
+
+  return (
+    <div>
+      <SectionHead label="Inbox" title="Messages" sub="Direct messages, notifications, documents." />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+        {myMessages.map(m => (
+          <Card key={m.id} style={{ padding: "14px 15px", borderLeft: `3px solid ${m.fromRole === "trainer" ? C.accent : m.fromRole === "manager" ? C.amber : C.teal}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Avatar initials={m.from.split(" ").map(w=>w[0]).join("")} color={m.fromRole === "trainer" ? C.accent : C.amber} size={28} />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{m.from}</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>→ {m.to}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {!m.read && <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.rose }} />}
+                <span style={{ fontSize: 10, color: C.muted }}>{m.time}</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.6 }}>{m.text}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Compose */}
+      <Card style={{ padding: "16px", border: `1.5px solid ${C.accentLight}55` }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "0.07em", marginBottom: 10 }}>SEND MESSAGE</div>
+        <textarea value={newMsg} onChange={e => setNewMsg(e.target.value)} rows={3} placeholder="Write your message, reminder, or push note…"
+          style={{ width: "100%", background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", color: C.text, fontSize: 13, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6, marginBottom: 8 }} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn small color={C.muted} outline>📎 Attach</Btn>
+          <Btn small color={C.muted} outline>🔗 Link</Btn>
+          <div style={{ flex: 1 }} />
+          {sent ? (
+            <div style={{ fontSize: 12, color: C.accent, fontWeight: 700, padding: "7px 13px" }}>✓ Sent!</div>
+          ) : (
+            <Btn small color={C.accent} onClick={() => { if (newMsg.trim()) { setSent(true); setNewMsg(""); setTimeout(() => setSent(false), 2500); } }}>Send</Btn>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// MATERIALS TAB — proper component so hooks work correctly
+// ════════════════════════════════════════════════════════════════════════
+function MaterialsTab({ workshopId, ws }) {
+  const mat = WORKSHOP_MATERIALS[workshopId];
+  const [matSection, setMatSection]   = useState("outline");
+  const [watchedVideos, setWatchedVideos]   = useState(() => mat?.videos.filter(v=>v.watched).map(v=>v.id) || []);
+  const [doneExercises, setDoneExercises]   = useState(() => mat?.exercises.filter(e=>e.completed).map(e=>e.id) || []);
+  const [expandedWeek, setExpandedWeek]     = useState(null);
+
+  if (!mat) return (
+    <div style={{ padding:"40px 16px", textAlign:"center", color:C.muted }}>
+      <div style={{ fontSize:32, marginBottom:12 }}>📂</div>
+      <div style={{ fontSize:14, fontWeight:600 }}>No materials uploaded yet.</div>
+      <div style={{ fontSize:12, marginTop:4 }}>Your trainer will add content soon.</div>
+    </div>
+  );
+
+  const totalVideos = mat.videos.length;
+  const watchedCount = watchedVideos.length;
+  const totalDocs = mat.documents.length;
+  const totalEx = mat.exercises.length;
+  const doneCount = doneExercises.length;
+  const overallPct = Math.round(((watchedCount + doneCount) / (totalVideos + totalEx)) * 100);
+
+  const matTabs = [
+    { id:"outline",   icon:"📋", label:"Outline"   },
+    { id:"videos",    icon:"🎬", label:"Videos"    },
+    { id:"documents", icon:"📁", label:"Files"     },
+    { id:"exercises", icon:"✏️",  label:"Exercises" },
+  ];
+
+  return (
+    <div style={{ paddingBottom: 8 }}>
+      {/* Header */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:10, fontWeight:700, color:C.muted, letterSpacing:"0.1em", marginBottom:4 }}>WORKSHOP MATERIALS</div>
+        <div style={{ fontSize:20, fontWeight:800, fontFamily:"'DM Serif Display',serif", color:C.text, marginBottom:3 }}>{ws.title}</div>
+        <div style={{ fontSize:12, color:C.muted }}>Facilitator: {mat.facilitator}</div>
+      </div>
+
+      {/* Progress overview */}
+      <Card style={{ padding:"16px", marginBottom:14 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, letterSpacing:"0.07em" }}>OVERALL PROGRESS</div>
+          <div style={{ fontSize:22, fontWeight:800, color:C.accent, fontFamily:"'DM Serif Display',serif" }}>{overallPct}%</div>
+        </div>
+        <PBar pct={overallPct} color={C.accent} h={8} />
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:12 }}>
+          {[
+            { l:"Videos",    v:`${watchedCount}/${totalVideos}`, c:C.teal   },
+            { l:"Files",     v:`${totalDocs}`,                   c:C.purple },
+            { l:"Exercises", v:`${doneCount}/${totalEx}`,        c:C.amber  },
+          ].map((s,i) => (
+            <div key={i} style={{ padding:"10px 8px", background:C.subtle, borderRadius:10, textAlign:"center" }}>
+              <div style={{ fontSize:9, color:C.muted, fontWeight:700, textTransform:"uppercase", marginBottom:4 }}>{s.l}</div>
+              <div style={{ fontSize:16, fontWeight:800, color:s.c, fontFamily:"'DM Serif Display',serif" }}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Trainer note */}
+      <Card style={{ padding:"14px 16px", marginBottom:14, borderLeft:`3px solid ${C.accent}` }}>
+        <div style={{ fontSize:10, fontWeight:700, color:C.accent, letterSpacing:"0.07em", marginBottom:6 }}>📌 NOTE FROM YOUR TRAINER</div>
+        <div style={{ fontSize:13, color:C.textSoft, lineHeight:1.7, fontStyle:"italic" }}>"{mat.facilitatorNote}"</div>
+        <div style={{ fontSize:11, color:C.muted, marginTop:6 }}>— {mat.facilitator}</div>
+      </Card>
+
+      {/* Sub-tab switcher */}
+      <div style={{ display:"flex", background:C.subtle, borderRadius:12, padding:4, marginBottom:16, gap:2 }}>
+        {matTabs.map(t => (
+          <button key={t.id} onClick={() => setMatSection(t.id)}
+            style={{ flex:1, padding:"8px 4px", background:matSection===t.id?C.white:"transparent", border:"none", borderRadius:9, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2, boxShadow:matSection===t.id?C.shadow:"none" }}>
+            <span style={{ fontSize:15 }}>{t.icon}</span>
+            <span style={{ fontSize:9, fontWeight:700, color:matSection===t.id?C.accent:C.muted, letterSpacing:"0.05em" }}>{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── OUTLINE ── */}
+      {matSection === "outline" && (
+        <div>
+          {mat.outline.map((wk, i) => {
+            const isOpen = expandedWeek === i;
+            const phaseColor = [C.accent, C.teal, C.amber, C.purple, C.purple][i] || C.accent;
+            return (
+              <Card key={i} style={{ marginBottom:10, overflow:"hidden" }}>
+                <button onClick={() => setExpandedWeek(isOpen ? null : i)}
+                  style={{ width:"100%", padding:"14px 16px", background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:12, textAlign:"left" }}>
+                  <div style={{ width:36, height:36, borderRadius:10, background:`${phaseColor}15`, border:`1.5px solid ${phaseColor}33`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:800, color:phaseColor, flexShrink:0 }}>{i+1}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:C.muted, marginBottom:2 }}>{wk.week}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.3 }}>{wk.title}</div>
+                  </div>
+                  <span style={{ color:C.muted, fontSize:14, flexShrink:0 }}>{isOpen ? "▲" : "▼"}</span>
+                </button>
+                {isOpen && (
+                  <div style={{ padding:"0 16px 14px" }}>
+                    <div style={{ height:1, background:C.border, marginBottom:12 }} />
+                    {wk.topics.map((tp, j) => (
+                      <div key={j} style={{ display:"flex", gap:10, marginBottom:8, alignItems:"flex-start" }}>
+                        <div style={{ width:6, height:6, borderRadius:"50%", background:phaseColor, flexShrink:0, marginTop:5 }} />
+                        <div style={{ fontSize:13, color:C.textSoft, lineHeight:1.55 }}>{tp}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── VIDEOS ── */}
+      {matSection === "videos" && (
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, letterSpacing:"0.08em", marginBottom:10 }}>{watchedCount} OF {totalVideos} WATCHED</div>
+          {mat.videos.map(v => {
+            const watched = watchedVideos.includes(v.id);
+            const phaseColor = PHASES[v.phase - 1]?.color || C.accent;
+            return (
+              <Card key={v.id} style={{ padding:"14px 15px", marginBottom:10, display:"flex", gap:14, alignItems:"center" }}>
+                <div style={{ width:56, height:42, borderRadius:10, background:`${phaseColor}15`, border:`1.5px solid ${phaseColor}33`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, position:"relative" }}>
+                  🎬
+                  {watched && (
+                    <div style={{ position:"absolute", inset:0, background:"rgba(26,122,74,0.75)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, color:"#fff" }}>✓</div>
+                  )}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.35 }}>{v.title}</div>
+                  <div style={{ display:"flex", gap:8, marginTop:5, alignItems:"center", flexWrap:"wrap" }}>
+                    <span style={{ fontSize:11, color:C.muted }}>⏱ {v.duration}</span>
+                    <Tag color={phaseColor} small>Phase {v.phase}</Tag>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setWatchedVideos(watched ? watchedVideos.filter(x => x !== v.id) : [...watchedVideos, v.id])}
+                  style={{ width:36, height:36, borderRadius:"50%", background:watched?C.accentSoft2:C.subtle, border:`1.5px solid ${watched?C.accent:C.border}`, color:watched?C.accent:C.muted, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  {watched ? "✓" : "▶"}
+                </button>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── DOCUMENTS ── */}
+      {matSection === "documents" && (
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, letterSpacing:"0.08em", marginBottom:10 }}>{totalDocs} FILES AVAILABLE</div>
+          {mat.documents.map(d => {
+            const phaseColor = PHASES[d.phase - 1]?.color || C.accent;
+            const typeColor = d.type === "PDF" ? C.rose : d.type === "DOCX" ? C.teal : C.amber;
+            return (
+              <Card key={d.id} style={{ padding:"13px 15px", marginBottom:8, display:"flex", gap:12, alignItems:"center" }}>
+                <div style={{ width:44, height:44, borderRadius:10, background:`${typeColor}12`, border:`1.5px solid ${typeColor}33`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{d.icon}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.3 }}>{d.title}</div>
+                  <div style={{ display:"flex", gap:6, marginTop:5, alignItems:"center", flexWrap:"wrap" }}>
+                    <Tag color={typeColor} small>{d.type}</Tag>
+                    <span style={{ fontSize:10, color:C.muted }}>{d.size}</span>
+                    <Tag color={phaseColor} small>Phase {d.phase}</Tag>
+                  </div>
+                </div>
+                <button style={{ padding:"6px 12px", background:C.accentSoft2, border:`1px solid ${C.accentLight}55`, borderRadius:9, color:C.accent, fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0 }}>↓ Save</button>
+              </Card>
+            );
+          })}
+          <Card style={{ padding:"14px 16px", marginTop:6, display:"flex", gap:12, alignItems:"center", border:`1.5px solid ${C.teal}44`, background:C.tealSoft }}>
+            <div style={{ fontSize:22 }}>🔗</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.teal }}>Post-Evaluation Form</div>
+              <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>Complete your end-of-workshop assessment</div>
+            </div>
+            <button style={{ padding:"6px 12px", background:C.teal, border:"none", borderRadius:9, color:C.white, fontSize:11, fontWeight:700, cursor:"pointer" }}>Open →</button>
+          </Card>
+        </div>
+      )}
+
+      {/* ── EXERCISES ── */}
+      {matSection === "exercises" && (
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, letterSpacing:"0.08em", marginBottom:10 }}>{doneCount} OF {totalEx} COMPLETED</div>
+          {mat.exercises.map(ex => {
+            const done = doneExercises.includes(ex.id);
+            const phaseColor = PHASES[ex.phase - 1]?.color || C.accent;
+            return (
+              <Card key={ex.id} style={{ padding:"15px", marginBottom:10, borderLeft:`3px solid ${done ? C.accent : C.border}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                  <div style={{ flex:1, paddingRight:10 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.35, marginBottom:4 }}>{ex.title}</div>
+                    <Tag color={phaseColor} small>Phase {ex.phase}</Tag>
+                  </div>
+                  <button
+                    onClick={() => setDoneExercises(done ? doneExercises.filter(x => x !== ex.id) : [...doneExercises, ex.id])}
+                    style={{ width:32, height:32, borderRadius:"50%", background:done?C.accentSoft2:C.subtle, border:`1.5px solid ${done?C.accent:C.border}`, color:done?C.accent:C.muted, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    {done ? "✓" : "○"}
+                  </button>
+                </div>
+                <div style={{ fontSize:12, color:C.textSoft, lineHeight:1.6, marginBottom: done ? 0 : 10 }}>{ex.desc}</div>
+                {!done && (
+                  <div style={{ display:"flex", gap:6 }}>
+                    <Btn small color={C.accent}>📎 Submit Work</Btn>
+                    <Btn small color={C.teal}>🎙 Voice Note</Btn>
+                  </div>
+                )}
+                {done && <div style={{ fontSize:11, color:C.accent, fontWeight:700, marginTop:6 }}>✓ Marked complete</div>}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// JOURNEY DETAIL VIEW — tabbed inner screen for trainee & trainer
+// ════════════════════════════════════════════════════════════════════════
+function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAnswers, setQuizAnswers, quizDone, setQuizDone, myAssignments, me, onBack, role = "trainee" }) {
+  const [innerTab, setInnerTab] = useState("overview");
+  const [newMsg, setNewMsg] = useState("");
+  const [sentMsg, setSentMsg] = useState(false);
+  const [trRatings, setTrRatings] = useState({});
+  const [localMsgs, setLocalMsgs] = useState(MESSAGES.filter(m => m.to === (me?.name || "") || m.from === (me?.name || "")));
+  const jAssignments = (myAssignments || ASSIGNMENTS).filter(a => {
+    const t = TEAM.find(x => x.id === a.traineeId);
+    return t?.workshopId === j.workshopId;
+  });
+  const isTrainer = role === "trainer";
+
+  const sendMsg = () => {
+    if (!newMsg.trim()) return;
+    const msg = { id: `m_${Date.now()}`, from: me?.name || "Shadi Obeidat", fromRole: role, to: isTrainer ? "Ahmad Khalil" : "Shadi Obeidat", text: newMsg.trim(), time: "Just now", read: false };
+    setLocalMsgs([...localMsgs, msg]);
+    setNewMsg(""); setSentMsg(true);
+    setTimeout(() => setSentMsg(false), 2000);
+  };
+
+  return (
+    <div style={{ paddingBottom: 100 }}>
+      {/* ── Sticky back + title header ── */}
+      <div style={{ position: "sticky", top: 54, zIndex: 90, background: C.white, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack}
+            style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>←</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: j.color, letterSpacing: "0.09em", textTransform: "uppercase" }}>Journey {j.number}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{j.title}</div>
+          </div>
+          <div style={{ padding: "4px 10px", background: ss.bg, borderRadius: 20, fontSize: 10, fontWeight: 700, color: ss.color, flexShrink: 0 }}>{ss.label}</div>
+        </div>
+
+        {/* ── Inner tab bar ── */}
+        <div style={{ display: "flex", overflowX: "auto", borderTop: `1px solid ${C.border}` }}>
+          {jTabs.map(t => (
+            <button key={t.id} onClick={() => setInnerTab(t.id)}
+              style={{ padding: "10px 14px", background: "none", border: "none", borderBottom: `2.5px solid ${innerTab === t.id ? j.color : "transparent"}`, color: innerTab === t.id ? j.color : C.muted, fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 13 }}>{t.icon}</span>{t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 16px" }}>
+
+        {/* ══ OVERVIEW ══ */}
+        {innerTab === "overview" && (
+          <div>
+            {/* Day 45 check-in (trainee, active journey only) */}
+            {!isTrainer && j.status === "active" && <BaselineCheckIn journeyColor={j.color} />}
+
+            {/* Status card */}
+            <Card style={{ padding: "16px", marginBottom: 14, borderTop: `3px solid ${j.color}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: C.muted }}>{j.subtitle}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>📅 {j.startDate} – {j.endDate}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>🎓 {j.facilitator}</div>
+                </div>
+              </div>
+
+              {j.status === "active" && (
+                <>
+                  <div style={{ display: "flex", gap: 5, marginBottom: 5 }}>
+                    {PHASES.map((p, i) => (
+                      <div key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i < j.phase ? p.color : C.border, opacity: i + 1 === j.phase ? 1 : i < j.phase ? 0.55 : 0.2 }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: C.muted, marginBottom: 12 }}>Phase {j.phase}/4 · Day {j.day}/{j.total}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                    {[{ l: "Day", v: `${j.day}/${j.total}`, c: j.color }, { l: "Score", v: `${j.score}%`, c: C.teal }, { l: "Streak", v: `🔥 ${j.streak}d`, c: C.amber }].map((s, i) => (
+                      <div key={i} style={{ padding: "9px 8px", background: C.subtle, borderRadius: 10, textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: C.muted, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>{s.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: s.c, fontFamily: "'DM Serif Display',serif" }}>{s.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {j.status !== "active" && (
+                <div style={{ padding: "11px 14px", background: C.subtle, borderRadius: 10, fontSize: 13, color: C.muted, textAlign: "center" }}>
+                  {j.status === "upcoming" ? `🗓 Starts ${j.startDate} — unlocks soon` : `📅 Planned for ${j.startDate}`}
+                </div>
+              )}
+            </Card>
+
+            {/* About + outcomes */}
+            <Card style={{ padding: "16px", marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 8 }}>ABOUT THIS JOURNEY</div>
+              <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.7, marginBottom: 14 }}>{j.description}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 8 }}>BEHAVIORAL OUTCOMES</div>
+              {j.outcomes.map((o, i) => (
+                <div key={i} style={{ display: "flex", gap: 9, marginBottom: 8, alignItems: "flex-start" }}>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", background: `${j.color}15`, border: `1.5px solid ${j.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: j.color, flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+                  <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.55 }}>{o}</div>
+                </div>
+              ))}
+              {j.evalLink && (
+                <div style={{ marginTop: 12, padding: "10px 12px", background: C.tealSoft, borderRadius: 10, border: `1px solid ${C.teal}33`, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>🔗</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.teal }}>Post-Evaluation Form</div>
+                  </div>
+                  <button style={{ padding: "5px 11px", background: C.teal, border: "none", borderRadius: 8, color: C.white, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Open</button>
+                </div>
+              )}
+            </Card>
+
+            {/* Personal objectives (trainee only) */}
+            {!isTrainer && j.status === "active" && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>MY PERSONAL OBJECTIVES</div>
+                {(objectives || []).map(o => {
+                  const pc = o.progress >= 75 ? C.accent : o.progress >= 40 ? C.teal : C.amber;
+                  return (
+                    <Card key={o.id} style={{ padding: "14px 15px", marginBottom: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <div style={{ fontSize: 13, color: C.text, flex: 1, paddingRight: 10, lineHeight: 1.55 }}>{o.text}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: pc, fontFamily: "'DM Serif Display',serif", flexShrink: 0 }}>{o.progress}%</div>
+                      </div>
+                      <PBar pct={o.progress} color={pc} />
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <button onClick={() => setObjectives(objectives.map(x => x.id === o.id ? { ...x, progress: Math.max(0, x.progress - 10) } : x))}
+                          style={{ width: 30, height: 30, borderRadius: 8, background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                        <button onClick={() => setObjectives(objectives.map(x => x.id === o.id ? { ...x, progress: Math.min(100, x.progress + 10) } : x))}
+                          style={{ width: 30, height: 30, borderRadius: 8, background: C.accentSoft2, border: `1px solid ${C.accentLight}44`, color: C.accent, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>＋</button>
+                        <div style={{ fontSize: 11, color: C.muted, flex: 1, alignSelf: "center", fontStyle: "italic" }}>{o.note}</div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Trainer learner overview */}
+            {isTrainer && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>LEARNER PROGRESS</div>
+                {TEAM.filter(t => t.workshopId === j.workshopId).map(t => {
+                  const sc = t.score > 80 ? C.accent : t.score > 60 ? C.teal : C.amber;
+                  return (
+                    <Card key={t.id} style={{ padding: "13px 15px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+                      <Ring pct={t.score} color={sc} size={42} stroke={4} label={t.avatar} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{t.name}</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{t.role} · 🔥 {t.streak}d</div>
+                      </div>
+                      <Tag color={sc}>{t.score}%</Tag>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ MATERIALS ══ */}
+        {innerTab === "materials" && (
+          <div>
+            {j.status === "active" && ws
+              ? <MaterialsTab workshopId={j.workshopId} ws={ws} />
+              : (
+                <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Materials locked</div>
+                  <div style={{ fontSize: 13, color: C.muted }}>Materials will be available when this journey becomes active on {j.startDate}.</div>
+                </div>
+              )
+            }
+          </div>
+        )}
+
+        {/* ══ ASSIGNMENTS ══ */}
+        {innerTab === "assignments" && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 2 }}>
+                {isTrainer ? "TRAINER VIEW" : "TRAINEE VIEW"}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>
+                {isTrainer ? "Review Assignments" : "My Assignments"}
+              </div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                {isTrainer ? "Rate submissions and give feedback." : "Submit your work and track trainer feedback."}
+              </div>
+            </div>
+
+            {jAssignments.length === 0 && (
+              <Card style={{ padding: "28px", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
+                <div style={{ fontSize: 13, color: C.muted }}>No assignments yet for this journey.</div>
+              </Card>
+            )}
+
+            {jAssignments.map(a => {
+              const statusColor = a.status === "submitted" ? C.accent : a.status === "overdue" ? C.rose : C.amber;
+              const trainee = TEAM.find(t => t.id === a.traineeId);
+              return (
+                <Card key={a.id} style={{ padding: "15px", marginBottom: 10, overflow: "hidden" }}>
+                  <div style={{ height: 3, background: statusColor, margin: "-15px -15px 12px" }} />
+
+                  {isTrainer && (
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                      <Avatar initials={trainee?.avatar || "??"} color={C.accent} size={26} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{trainee?.name}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div style={{ flex: 1, paddingRight: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.title}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Due: Day {a.dueDay} · {a.type}</div>
+                    </div>
+                    <Tag color={statusColor}>{a.status}</Tag>
+                  </div>
+
+                  {/* Submitted state */}
+                  {a.status === "submitted" && (
+                    <div style={{ padding: "10px 12px", background: C.accentSoft, borderRadius: 10, border: `1px solid ${C.accentLight}44`, marginBottom: isTrainer ? 10 : 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, marginBottom: 4 }}>
+                        {isTrainer ? "📎 SUBMITTED WORK" : "TRAINER FEEDBACK"}
+                      </div>
+                      {!isTrainer && a.trainerRating && (
+                        <>
+                          <StarRating value={a.trainerRating} />
+                          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 5, lineHeight: 1.55 }}>{a.trainerNote}</div>
+                        </>
+                      )}
+                      {isTrainer && (
+                        <div style={{ fontSize: 12, color: C.textSoft }}>
+                          [{a.type === "audio" ? "🎙 Audio recording" : a.type === "document" ? "📄 Document" : "🖼 Image"} — submitted Day {a.submittedDay}]
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Trainer rating area */}
+                  {isTrainer && a.status === "submitted" && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6 }}>YOUR RATING</div>
+                      <StarRating value={trRatings[a.id] ?? a.trainerRating ?? 0} onChange={v => setTrRatings({ ...trRatings, [a.id]: v })} />
+                      <div style={{ marginTop: 8, padding: "8px 12px", background: C.subtle, borderRadius: 8, fontSize: 12, color: C.textSoft, fontStyle: "italic" }}>{a.trainerNote || "No feedback added yet."}</div>
+                    </div>
+                  )}
+
+                  {/* Trainee submit area */}
+                  {!isTrainer && a.status !== "submitted" && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                      <Btn small color={C.accent}>📎 Upload</Btn>
+                      <Btn small color={C.teal}>🎙 Voice</Btn>
+                      <Btn small color={C.purple}>📷 Image</Btn>
+                    </div>
+                  )}
+
+                  {/* Overdue alert */}
+                  {a.status === "overdue" && (
+                    <div style={{ marginTop: 8, padding: "8px 12px", background: C.roseSoft, borderRadius: 8, fontSize: 12, color: C.rose, fontWeight: 600 }}>
+                      ⛔ Overdue — {isTrainer ? "send a reminder" : "submit as soon as possible"}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+
+            {/* Trainer: add new assignment */}
+            {isTrainer && (
+              <Card style={{ padding: "16px", border: `1.5px dashed ${C.accent}55`, background: C.accentSoft, marginTop: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, marginBottom: 8 }}>+ CREATE NEW ASSIGNMENT</div>
+                <input placeholder="Assignment title…"
+                  style={{ width: "100%", background: C.white, border: `1px solid ${C.border}`, borderRadius: 9, padding: "10px 12px", color: C.text, fontSize: 13, outline: "none", marginBottom: 8, fontFamily: "inherit" }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small color={C.accent}>Create</Btn>
+                  <Btn small color={C.teal} outline>Attach File</Btn>
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* ══ QUIZ ══ */}
+        {innerTab === "quiz" && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 2 }}>
+                {isTrainer ? "TRAINER VIEW" : "FROM TRAINER"}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>
+                {isTrainer ? "Quiz Management" : "Active Quiz"}
+              </div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                {isTrainer ? "Send quizzes and view results." : `${j.title} · Complete before Day 52`}
+              </div>
+            </div>
+
+            {/* Trainer view: sent quiz + create new */}
+            {isTrainer && (
+              <div>
+                <Card style={{ padding: "15px", marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>SPIN Selling — Quick Check</div>
+                    <Tag color={C.accent}>Sent · Day 45</Tag>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>3 questions · 15 of 18 completed</div>
+                  <PBar pct={83} color={C.accent} />
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>15/18 submitted</div>
+                </Card>
+                <Card style={{ padding: "16px", border: `1.5px dashed ${C.accent}55`, background: C.accentSoft }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, marginBottom: 10 }}>+ SEND NEW QUIZ</div>
+                  {QUIZ_QUESTIONS.map((q, i) => (
+                    <div key={q.id} style={{ padding: "10px 12px", background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4 }}>{i+1}. {q.q}</div>
+                      {q.options.map((opt, j) => (
+                        <div key={j} style={{ fontSize: 11, color: j === q.correct ? C.accent : C.muted, padding: "3px 0", fontWeight: j === q.correct ? 700 : 400 }}>
+                          {j === q.correct ? "✓ " : "○ "}{opt}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <Btn full color={C.accent}>Send to All Learners</Btn>
+                </Card>
+              </div>
+            )}
+
+            {/* Trainee view: answer quiz */}
+            {!isTrainer && (
+              <div>
+                {!quizDone ? (
+                  <div>
+                    {QUIZ_QUESTIONS.map((q, i) => (
+                      <Card key={q.id} style={{ padding: "15px", marginBottom: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>{i+1}. {q.q}</div>
+                        {q.options.map((opt, k) => (
+                          <button key={k} onClick={() => setQuizAnswers({ ...quizAnswers, [q.id]: k })}
+                            style={{ width: "100%", padding: "10px 12px", background: quizAnswers[q.id] === k ? C.accentSoft2 : C.subtle, border: `1.5px solid ${quizAnswers[q.id] === k ? C.accent : C.border}`, borderRadius: 10, textAlign: "left", cursor: "pointer", fontSize: 12, color: quizAnswers[q.id] === k ? C.accent : C.textSoft, fontWeight: quizAnswers[q.id] === k ? 700 : 400, marginBottom: 6 }}>
+                            {opt}
+                          </button>
+                        ))}
+                      </Card>
+                    ))}
+                    <Btn full onClick={() => Object.keys(quizAnswers).length === QUIZ_QUESTIONS.length && setQuizDone(true)}>
+                      Submit Quiz
+                    </Btn>
+                  </div>
+                ) : (
+                  <Card style={{ padding: "32px", textAlign: "center" }}>
+                    <div style={{ fontSize: 44, marginBottom: 12 }}>✅</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: C.accent, fontFamily: "'DM Serif Display',serif", marginBottom: 6 }}>Quiz Submitted!</div>
+                    <div style={{ fontSize: 13, color: C.muted }}>Your trainer will review and respond shortly.</div>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ MESSAGES ══ */}
+        {innerTab === "messages" && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 2 }}>JOURNEY MESSAGES</div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>{j.title}</div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                {isTrainer ? "Messages with learners in this journey." : "Direct channel with your trainer & manager."}
+              </div>
+            </div>
+
+            {/* Message thread */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+              {localMsgs.map(m => {
+                const isMine = m.from === (me?.name || "");
+                const roleColor = m.fromRole === "trainer" ? C.accent : m.fromRole === "manager" ? C.amber : C.teal;
+                return (
+                  <div key={m.id} style={{ display: "flex", justifyContent: isMine ? "flex-end" : "flex-start", gap: 8, alignItems: "flex-end" }}>
+                    {!isMine && (
+                      <Avatar initials={m.from.split(" ").map(w=>w[0]).join("")} color={roleColor} size={28} />
+                    )}
+                    <div style={{ maxWidth: "78%" }}>
+                      {!isMine && <div style={{ fontSize: 10, fontWeight: 700, color: roleColor, marginBottom: 3 }}>{m.from}</div>}
+                      <div style={{
+                        padding: "11px 14px",
+                        borderRadius: isMine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                        background: isMine ? `linear-gradient(135deg,${C.accent},${C.accentMid})` : C.white,
+                        border: isMine ? "none" : `1px solid ${C.border}`,
+                        fontSize: 13, lineHeight: 1.6,
+                        color: isMine ? C.white : C.text,
+                        boxShadow: C.shadow,
+                      }}>{m.text}</div>
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 3, textAlign: isMine ? "right" : "left" }}>{m.time}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Compose */}
+            <Card style={{ padding: "14px", border: `1.5px solid ${C.border}`, position: "sticky", bottom: 80 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <Btn small color={C.muted} outline>📎</Btn>
+                <Btn small color={C.muted} outline>🔗</Btn>
+                <Btn small color={C.muted} outline>🎙</Btn>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={newMsg} onChange={e => setNewMsg(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && sendMsg()}
+                  placeholder={isTrainer ? "Message to learners…" : "Message your trainer…"}
+                  style={{ flex: 1, background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 24, padding: "10px 16px", color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+                {sentMsg
+                  ? <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.accentSoft2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: C.accent }}>✓</div>
+                  : <button onClick={sendMsg} style={{ width: 40, height: 40, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentMid})`, border: "none", color: C.white, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
+                }
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// TRAINEE SECTION
+// ════════════════════════════════════════════════════════════════════════
+function TraineeSection() {
+  const [tab, setTab] = useState("journeys");
+  const [selectedJourney, setSelectedJourney] = useState(null); // null = list view
+  const me = TEAM[0]; // Ahmad Khalil
+  const myMessages = MESSAGES.filter(m => m.to === me.name);
+  const myAssignments = ASSIGNMENTS.filter(a => a.traineeId === me.id);
+  const [objectives, setObjectives] = useState([
+    { id: 1, text: "Stop rushing through Implication stage — set a mental timer", progress: 40, note: "Still struggling under time pressure" },
+    { id: 2, text: "Ask Situation questions confidently even with specialists", progress: 65, note: "Getting better" },
+  ]);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizDone, setQuizDone] = useState(false);
+
+  // The workshop corresponding to the selected journey (for MaterialsTab)
+  const activeJourneyData = selectedJourney ? JOURNEYS.find(j => j.id === selectedJourney) : null;
+  const activeWs = activeJourneyData ? WORKSHOPS.find(w => w.id === activeJourneyData.workshopId) : null;
+
+  const tabs = [{ id: "journeys", l: "My Journeys" }];
+  const sc = me.score > 80 ? C.accent : me.score > 60 ? C.teal : C.amber;
+
+  const statusStyle = {
+    active:    { color: C.accent,  bg: C.accentSoft2, label: "Active"    },
+    upcoming:  { color: C.teal,    bg: C.tealSoft,    label: "Upcoming"  },
+    planned:   { color: C.muted,   bg: C.subtle,      label: "Planned"   },
+    completed: { color: C.purple,  bg: C.purpleSoft,  label: "Completed" },
+  };
+
+  // ── Journey detail view (full tabbed) ────────────────────────────────
+  if (selectedJourney && tab === "journeys") {
+    const j = JOURNEYS.find(x => x.id === selectedJourney);
+    const ws = WORKSHOPS.find(w => w.id === j.workshopId);
+    const ss = statusStyle[j.status];
+    const jTabs = [
+      { id: "overview",    icon: "◎",  label: "Overview"    },
+      { id: "materials",   icon: "📁", label: "Materials"   },
+      { id: "assignments", icon: "📋", label: "Assignments" },
+      { id: "quiz",        icon: "📝", label: "Quiz"        },
+      { id: "messages",    icon: "💬", label: "Messages"    },
+    ];
+
+    return (
+      <JourneyDetailView
+        j={j} ws={ws} ss={ss} jTabs={jTabs}
+        objectives={objectives} setObjectives={setObjectives}
+        quizAnswers={quizAnswers} setQuizAnswers={setQuizAnswers}
+        quizDone={quizDone} setQuizDone={setQuizDone}
+        myAssignments={myAssignments} me={me}
+        onBack={() => setSelectedJourney(null)}
+      />
+    );
+  }
+
+  // ── Main trainee view ─────────────────────────────────────────────────
+  return (
+    <div style={{ paddingBottom: 100 }}>
+      <div style={{ padding: "18px 16px 0", background: C.white, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <Ring pct={me.score} color={sc} size={44} stroke={4} label={me.avatar} />
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{me.name}</div>
+            <div style={{ fontSize: 11, color: C.accentMid }}>{me.role} · 🔥 {me.streak}-day streak</div>
+          </div>
+          {myMessages.filter(m => !m.read).length > 0 && (
+            <div style={{ marginLeft: "auto", width: 22, height: 22, borderRadius: "50%", background: C.rose, color: C.white, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{myMessages.filter(m => !m.read).length}</div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{ padding: "9px 13px", background: "none", border: "none", borderBottom: `2.5px solid ${tab === t.id ? C.teal : "transparent"}`, color: tab === t.id ? C.teal : C.muted, fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 16px" }}>
+
+        {/* ── JOURNEYS LIST ── */}
+        {tab === "journeys" && (
+          <div>
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 3 }}>MY LEARNING PATH</div>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Training Journeys</div>
+              <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>Each journey is a 90-day behavioral transformation.</div>
+            </div>
+
+            {/* Overall path progress */}
+            <Card style={{ padding: "16px", marginBottom: 18, background: `linear-gradient(135deg, ${C.accentSoft} 0%, ${C.white} 100%)`, border: `1.5px solid ${C.accentLight}55` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 10 }}>OVERALL LEARNING PATH</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {JOURNEYS.map((j, i) => {
+                  const ss = statusStyle[j.status];
+                  return (
+                    <div key={j.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ width: "100%", height: 8, borderRadius: 4, background: j.status === "active" ? `linear-gradient(90deg,${j.color},${j.color}88)` : j.status === "planned" || j.status === "upcoming" ? C.border : j.color, position: "relative", overflow: j.status === "active" ? "hidden" : "visible" }}>
+                        {j.status === "active" && (
+                          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round((j.day/j.total)*100)}%`, background: j.color, borderRadius: 4 }} />
+                        )}
+                      </div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: ss.color, textTransform: "uppercase", letterSpacing: "0.04em" }}>J{j.number}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                <span style={{ fontSize: 11, color: C.muted }}>1 active · 1 upcoming · 1 planned</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.accent }}>Journey 1 of 3</span>
+              </div>
+            </Card>
+
+            {/* Journey cards */}
+            {JOURNEYS.map(j => {
+              const ss = statusStyle[j.status];
+              const isActive = j.status === "active";
+              return (
+                <button key={j.id} onClick={() => { setSelectedJourney(j.id); setTab("journeys"); }}
+                  style={{ width: "100%", marginBottom: 12, padding: 0, background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>
+                  <Card style={{ padding: "17px 16px", borderLeft: `4px solid ${j.color}`, position: "relative", overflow: "hidden" }}>
+                    {/* Journey number badge */}
+                    <div style={{ position: "absolute", top: 14, right: 14, width: 28, height: 28, borderRadius: "50%", background: `${j.color}15`, border: `1.5px solid ${j.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: j.color }}>{j.number}</div>
+
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 12, background: `${j.color}12`, border: `1.5px solid ${j.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{j.icon}</div>
+                      <div style={{ flex: 1, paddingRight: 36 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: j.color, letterSpacing: "0.07em", marginBottom: 2 }}>JOURNEY {j.number}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text, lineHeight: 1.2 }}>{j.title}</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{j.facilitator} · {j.startDate} – {j.endDate}</div>
+                      </div>
+                    </div>
+
+                    {/* Status + progress */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isActive ? 10 : 0 }}>
+                      <div style={{ padding: "4px 10px", background: ss.bg, borderRadius: 20, fontSize: 10, fontWeight: 700, color: ss.color }}>{ss.label}</div>
+                      {isActive && <span style={{ fontSize: 11, fontWeight: 700, color: j.color }}>{j.score}% score · 🔥 {j.streak}d</span>}
+                      {!isActive && <span style={{ fontSize: 11, color: C.muted }}>{j.startDate}</span>}
+                    </div>
+
+                    {isActive && (
+                      <>
+                        <PBar pct={Math.round((j.day / j.total) * 100)} color={j.color} h={5} />
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                          <span style={{ fontSize: 10, color: C.muted }}>Day {j.day} of {j.total}</span>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            {PHASES.map((p, i) => (
+                              <div key={i} style={{ width: 16, height: 4, borderRadius: 2, background: i < j.phase ? p.color : C.border, opacity: i + 1 === j.phase ? 1 : i < j.phase ? 0.6 : 0.3 }} />
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {!isActive && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: C.muted, fontStyle: "italic" }}>
+                        {j.status === "upcoming" ? "Tap to preview — starts soon." : "Tap to view details."}
+                      </div>
+                    )}
+
+                    {/* Tap indicator */}
+                    <div style={{ position: "absolute", right: 16, bottom: 16, color: j.color, fontSize: 16, opacity: 0.4 }}>›</div>
+                  </Card>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── ASSIGNMENTS ── */}
+        {tab === "assignments" && (
+          <div>
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 3 }}>TRAINEE</div>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>My Assignments</div>
+              <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>Submit your work and track feedback.</div>
+            </div>
+            {myAssignments.map(a => {
+              const statusColor = a.status === "submitted" ? C.accent : a.status === "overdue" ? C.rose : C.amber;
+              return (
+                <Card key={a.id} style={{ padding: "15px", marginBottom: 10, overflow: "hidden" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div style={{ flex: 1, paddingRight: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.title}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Due: Day {a.dueDay} · Type: {a.type}</div>
+                    </div>
+                    <Tag color={statusColor}>{a.status}</Tag>
+                  </div>
+                  {a.status === "submitted" && a.trainerRating && (
+                    <div style={{ padding: "10px 12px", background: C.accentSoft, borderRadius: 10, border: `1px solid ${C.accentLight}44` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, marginBottom: 5 }}>TRAINER FEEDBACK</div>
+                      <StarRating value={a.trainerRating} />
+                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 5, lineHeight: 1.55 }}>{a.trainerNote}</div>
+                    </div>
+                  )}
+                  {a.status !== "submitted" && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                      <Btn small color={C.accent}>📎 Upload Document</Btn>
+                      <Btn small color={C.teal}>🎙 Voice Note</Btn>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── QUIZ ── */}
+        {tab === "quiz" && (
+          <div>
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 3 }}>FROM TRAINER</div>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Active Quiz</div>
+              <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>SPIN Selling — Complete before Day 52.</div>
+            </div>
+            {!quizDone ? (
+              <div>
+                {QUIZ_QUESTIONS.map((q, i) => (
+                  <Card key={q.id} style={{ padding: "15px", marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>{i+1}. {q.q}</div>
+                    {q.options.map((opt, j) => (
+                      <button key={j} onClick={() => setQuizAnswers({ ...quizAnswers, [q.id]: j })}
+                        style={{ width: "100%", padding: "10px 12px", background: quizAnswers[q.id] === j ? C.accentSoft2 : C.subtle, border: `1.5px solid ${quizAnswers[q.id] === j ? C.accent : C.border}`, borderRadius: 10, textAlign: "left", cursor: "pointer", fontSize: 12, color: quizAnswers[q.id] === j ? C.accent : C.textSoft, fontWeight: quizAnswers[q.id] === j ? 700 : 400, marginBottom: 6 }}>
+                        {opt}
+                      </button>
+                    ))}
+                  </Card>
+                ))}
+                <Btn full onClick={() => Object.keys(quizAnswers).length === QUIZ_QUESTIONS.length && setQuizDone(true)}>Submit Quiz</Btn>
+              </div>
+            ) : (
+              <Card style={{ padding: "28px", textAlign: "center" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.accent, fontFamily: "'DM Serif Display',serif" }}>Quiz Submitted!</div>
+                <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>Your trainer will review and provide feedback shortly.</div>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* ── MESSAGES ── */}
+        {tab === "messages" && <MessagingPanel role="trainee" userName={me.name} />}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// MANAGER SECTION
+// ════════════════════════════════════════════════════════════════════════
+function ManagerSection() {
+  const [tab, setTab] = useState("team");
+  const [selectedMember, setSelectedMember] = useState(1);
+  const [observations, setObservations] = useState(MANAGER_OBSERVATIONS);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ type: "Joint Visit", note: "", rating: 3 });
+  const [submitted, setSubmitted] = useState(false);
+  const [editedAssignment, setEditedAssignment] = useState(null);
+
+  const myTeam = TEAM.filter(t => t.manager === "Layla Mansour");
+  const member = myTeam.find(t => t.id === selectedMember) || myTeam[0];
+  const memberWs = WORKSHOPS.find(w => w.id === member?.workshopId);
+  const memberAssignments = ASSIGNMENTS.filter(a => a.traineeId === member?.id);
+  const memberObs = observations.filter(o => o.teamId === member?.id);
+  const statusConfig = { excellent: { color: C.accent, l: "Excellent" }, "on-track": { color: C.teal, l: "On Track" }, "needs-work": { color: C.amber, l: "Needs Work" }, "at-risk": { color: C.rose, l: "At Risk" } };
+
+  const tabs = [{ id: "team", l: "My Team" }, { id: "assignments", l: "Assignments" }, { id: "messages", l: "Messages" }];
+
+  return (
+    <div style={{ paddingBottom: 100 }}>
+      <div style={{ padding: "18px 16px 0", background: C.white, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <Avatar initials="LM" color={C.amber} size={36} />
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Layla Mansour</div>
+            <div style={{ fontSize: 11, color: C.amber }}>👔 District Manager · {myTeam.length} direct reports</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 0 }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{ padding: "9px 14px", background: "none", border: "none", borderBottom: `2.5px solid ${tab === t.id ? C.amber : "transparent"}`, color: tab === t.id ? C.amber : C.muted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 16px" }}>
+
+        {tab === "team" && (
+          <div>
+            {/* Team member selector */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>MY DIRECT REPORTS</div>
+            <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: 16 }}>
+              {myTeam.map(t => {
+                const sc = t.score > 80 ? C.accent : t.score > 60 ? C.teal : C.amber;
+                const lastObs = observations.find(o => o.teamId === t.id);
+                return (
+                  <button key={t.id} onClick={() => setSelectedMember(t.id)}
+                    style={{ flexShrink: 0, width: 100, padding: "12px 10px", background: selectedMember === t.id ? C.amberSoft : C.white, border: `1.5px solid ${selectedMember === t.id ? C.amber : C.border}`, borderRadius: 14, cursor: "pointer", textAlign: "center", boxShadow: C.shadow }}>
+                    <Ring pct={t.score} color={sc} size={42} stroke={4} label={t.avatar} />
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginTop: 7 }}>{t.name.split(" ")[0]}</div>
+                    {lastObs && <div style={{ fontSize: 9, color: statusConfig[lastObs.status]?.color, marginTop: 2 }}>{statusConfig[lastObs.status]?.l}</div>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {member && (
+              <div>
+                {/* Member details */}
+                <Card style={{ padding: "16px", marginBottom: 14 }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+                    <Ring pct={member.score} color={member.score > 80 ? C.accent : member.score > 60 ? C.teal : C.amber} size={52} stroke={4} label={member.avatar} />
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{member.name}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>{member.role} · Phase {member.phase}/4 · 🔥 {member.streak}d</div>
+                    </div>
+                  </div>
+
+                  {/* Workshop snapshot */}
+                  {memberWs && (
+                    <div style={{ padding: "11px 13px", background: C.accentSoft, borderRadius: 10, border: `1px solid ${C.accentLight}44`, marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, marginBottom: 6 }}>WORKSHOP: {memberWs.title}</div>
+                      {memberWs.outcomes.map((o, i) => (
+                        <div key={i} style={{ fontSize: 11, color: C.textSoft, marginBottom: 3 }}>• {o}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add observation */}
+                  {!showForm ? (
+                    <button onClick={() => setShowForm(true)}
+                      style={{ width: "100%", padding: "11px", background: C.amberSoft, border: `1px dashed ${C.amber}55`, borderRadius: 12, cursor: "pointer", color: C.amber, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                      ＋ Log Field Observation
+                    </button>
+                  ) : (
+                    <div style={{ background: C.cardAlt, border: `1.5px solid ${C.amber}55`, borderRadius: 12, padding: "14px" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, marginBottom: 10 }}>NEW OBSERVATION — {member.name}</div>
+                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                        {["Joint Visit", "Coaching Session", "Remote Check-in"].map(t => (
+                          <button key={t} onClick={() => setForm({ ...form, type: t })}
+                            style={{ flex: 1, padding: "7px 4px", background: form.type === t ? C.amberSoft : C.subtle, border: `1px solid ${form.type === t ? C.amber+"55" : C.border}`, borderRadius: 8, cursor: "pointer", fontSize: 9, fontWeight: 700, color: form.type === t ? C.amber : C.muted }}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} rows={3}
+                        placeholder="What did you observe? Reference the trainer's behavioral expectations."
+                        style={{ width: "100%", background: C.white, border: `1px solid ${C.border}`, borderRadius: 9, padding: "10px 12px", color: C.text, fontSize: 12, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6, marginBottom: 10 }} />
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>IMPLEMENTATION RATING</div>
+                        <StarRating value={form.rating} onChange={v => setForm({ ...form, rating: v })} />
+                      </div>
+                      {submitted ? (
+                        <div style={{ padding: "10px", background: C.amberSoft, borderRadius: 9, textAlign: "center", fontSize: 12, color: C.amber, fontWeight: 700 }}>✓ Observation saved</div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <Btn full color={C.amber} onClick={() => {
+                            if (!form.note.trim()) return;
+                            setObservations([{ id: `obs_${Date.now()}`, teamId: member.id, date: `Day ${member.streak + 2}`, type: form.type, rating: form.rating, status: form.rating >= 5 ? "excellent" : form.rating >= 4 ? "on-track" : form.rating >= 2 ? "needs-work" : "at-risk", note: form.note }, ...observations]);
+                            setSubmitted(true); setTimeout(() => { setSubmitted(false); setShowForm(false); setForm({ type: "Joint Visit", note: "", rating: 3 }); }, 2000);
+                          }}>Submit</Btn>
+                          <Btn outline onClick={() => setShowForm(false)}>Cancel</Btn>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+
+                {/* Observation log */}
+                {memberObs.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>OBSERVATION LOG</div>
+                    {memberObs.map(o => {
+                      const cfg = statusConfig[o.status];
+                      return (
+                        <Card key={o.id} style={{ padding: "14px 15px", marginBottom: 10, borderLeft: `3px solid ${cfg.color}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{o.type}</div>
+                            <Tag color={cfg.color}>{cfg.l}</Tag>
+                          </div>
+                          <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{o.date}</div>
+                          <StarRating value={o.rating} size={16} />
+                          <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.6, marginTop: 7 }}>{o.note}</div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Assignments with edit option */}
+                {memberAssignments.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>ASSIGNMENTS</div>
+                    {memberAssignments.map(a => (
+                      <Card key={a.id} style={{ padding: "13px 15px", marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.title}</div>
+                          <Tag color={a.status === "submitted" ? C.accent : a.status === "overdue" ? C.rose : C.amber}>{a.status}</Tag>
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Due: Day {a.dueDay} · {a.type}</div>
+                        {editedAssignment !== a.id ? (
+                          <button onClick={() => setEditedAssignment(a.id)}
+                            style={{ padding: "6px 12px", background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11, color: C.textSoft, cursor: "pointer", fontWeight: 600 }}>
+                            ✎ Edit to match real-life situation
+                          </button>
+                        ) : (
+                          <div>
+                            <textarea rows={2} placeholder={`Adapt this assignment for ${member.name}'s current field context…`}
+                              style={{ width: "100%", background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 12px", fontSize: 12, color: C.text, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, marginBottom: 6 }} />
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <Btn small color={C.amber}>Save Edit</Btn>
+                              <Btn small outline onClick={() => setEditedAssignment(null)}>Cancel</Btn>
+                            </div>
+                          </div>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "assignments" && (
+          <div>
+            <SectionHead label="Manager View" title="Team Assignments" sub="Overview of all direct reports." />
+            {myTeam.map(t => {
+              const tAssignments = ASSIGNMENTS.filter(a => a.traineeId === t.id);
+              if (!tAssignments.length) return null;
+              return (
+                <div key={t.id} style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <Avatar initials={t.avatar} color={C.accent} size={24} />{t.name}
+                  </div>
+                  {tAssignments.map(a => (
+                    <Card key={a.id} style={{ padding: "11px 14px", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{a.title}</div>
+                        <div style={{ fontSize: 10, color: C.muted }}>Due Day {a.dueDay}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {a.trainerRating && <StarRating value={a.trainerRating} size={14} />}
+                        <Tag color={a.status === "submitted" ? C.accent : a.status === "overdue" ? C.rose : C.amber} small>{a.status}</Tag>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {tab === "messages" && <MessagingPanel role="manager" userName="Layla Mansour" />}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ROOT APP
+// ════════════════════════════════════════════════════════════════════════
+function App() {
+  const [currentRole, setCurrentRole] = useState(null);
+  const [showAI, setShowAI] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifs, setNotifs] = useState(NOTIFICATIONS);
+
+  const roleConfig = {
+    admin:   { color: C.purple, icon: "🏢", label: "Admin" },
+    trainer: { color: C.accent, icon: "🎓", label: "Trainer" },
+    trainee: { color: C.teal,   icon: "👤", label: "Trainee" },
+    manager: { color: C.amber,  icon: "👔", label: "Manager" },
+  };
+
+  if (!currentRole) return (
+    <div style={{ fontFamily: "'Syne',sans-serif", maxWidth: 430, margin: "0 auto" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+      <style>{`* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; } body { background:${C.bg}; } ::-webkit-scrollbar{display:none;} button{font-family:'Syne',sans-serif;} input,textarea{font-family:'Syne',sans-serif; -webkit-appearance:none;} input::placeholder,textarea::placeholder{color:${C.muted};} @keyframes dot{0%,100%{opacity:.3;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}`}</style>
+      <LoginScreen onLogin={setCurrentRole} />
+    </div>
+  );
+
+  const cfg = roleConfig[currentRole];
+  const sections = { admin: <AdminSection />, trainer: <TrainerSection />, trainee: <TraineeSection />, manager: <ManagerSection /> };
+  const unreadCount = (notifs[currentRole] || []).filter(n => !n.read).length;
+
+  return (
+    <div style={{ fontFamily: "'Syne',sans-serif", background: C.bg, color: C.text, minHeight: "100vh", maxWidth: 430, margin: "0 auto", position: "relative" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+      <style>{`* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; } body { background:${C.bg}; } ::-webkit-scrollbar{display:none;} button{font-family:'Syne',sans-serif;} input,textarea{font-family:'Syne',sans-serif; -webkit-appearance:none;} input::placeholder,textarea::placeholder{color:${C.muted};} @keyframes dot{0%,100%{opacity:.3;transform:scale(.75)}50%{opacity:1;transform:scale(1)}} @keyframes slideDown{from{transform:translateY(-30px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+
+      {/* Top bar */}
+      <div style={{ position: "sticky", top: 0, zIndex: 100, background: `${C.white}EE`, backdropFilter: "blur(14px)", borderBottom: `1px solid ${C.border}`, padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 8px rgba(26,122,74,0.07)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg,${C.accent},${C.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: C.white, boxShadow: "0 2px 8px rgba(26,122,74,0.25)" }}>◈</div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>BRP</div>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>90-DAY JOURNEYS</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ padding: "4px 10px", background: `${cfg.color}15`, border: `1px solid ${cfg.color}44`, borderRadius: 20, fontSize: 10, color: cfg.color, fontWeight: 700 }}>{cfg.icon} {cfg.label}</div>
+          {/* Notification bell */}
+          <button onClick={() => setShowNotifications(true)}
+            style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.textSoft, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+            🔔
+            {unreadCount > 0 && (
+              <div style={{ position: "absolute", top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 8, background: C.rose, color: C.white, fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", border: `1.5px solid ${C.white}` }}>{unreadCount}</div>
+            )}
+          </button>
+          <button onClick={() => setShowAI(true)}
+            style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentLight})`, border: "none", color: C.white, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(26,122,74,0.3)" }}>✦</button>
+          <button onClick={() => setCurrentRole(null)}
+            style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>⟵</button>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ minHeight: "calc(100vh - 60px)" }}>
+        {sections[currentRole]}
+      </div>
+
+      {showAI && <AIModal onClose={() => setShowAI(false)} />}
+      {showNotifications && <NotificationsPanel items={notifs[currentRole] || []} onUpdate={(list) => setNotifs({ ...notifs, [currentRole]: list })} onClose={() => setShowNotifications(false)} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
