@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Behavioral Reinforcement Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -13,6 +13,11 @@
   body { background: #F0FAF4; font-family: 'Syne', sans-serif; }
   ::-webkit-scrollbar { display: none; }
   #root { min-height: 100vh; }
+  button { font-family: 'Syne', sans-serif; }
+  input, textarea { font-family: 'Syne', sans-serif; -webkit-appearance: none; }
+  input::placeholder, textarea::placeholder { color: #6B8F7A; }
+  @keyframes dot { 0%,100% { opacity: .3; transform: scale(.75); } 50% { opacity: 1; transform: scale(1); } }
+  @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 </style>
 </head>
 <body>
@@ -93,8 +98,6 @@ const CLIENTS = [
   },
 ];
 
-const COMPANY = CLIENTS[0]; // default active client
-
 const USERS = {
   admin:   { id:"admin",   name:"Hana Al-Rashid",  role:"admin",   avatar:"HA", title:"L&D Manager" },
   trainer: { id:"trainer", name:"Shadi Obeidat",    role:"trainer", avatar:"SO", title:"Senior Trainer" },
@@ -167,7 +170,7 @@ const JOURNEYS = [
     id: 3,
     number: 3,
     clientId: 1,
-    workshopId: 3,
+    workshopId: null, // no workshop delivered yet (workshop 3 is Objection Handling, a different programme)
     title: "KAM Fundamentals",
     subtitle: "Key Account Management · 90-Day Journey",
     status: "planned",
@@ -245,14 +248,8 @@ const MESSAGES = [
 
 const QUIZ_QUESTIONS = [
   { id:1, q:"What does the 'I' in SPIN stand for?", options:["Introduction","Implication","Investigation","Intention"], correct:1 },
-  { id:2, q:"Which stage comes BEFORE Implication in SPIN?", options:["Need-Payoff","Problem","Situation","Closing"], correct:1 },
+  { id:2, q:"Which stage comes immediately BEFORE Implication in SPIN?", options:["Need-Payoff","Problem","Situation","Closing"], correct:1 },
   { id:3, q:"A Need-Payoff question is designed to:", options:["Create urgency","Get the customer to state the value","Identify pain points","Close the deal"], correct:1 },
-];
-
-const REMINDERS = [
-  { id:1, day:7,  message:"Great start! Reflect on your first week — what changed in your approach?", sent:true },
-  { id:2, day:30, message:"You're at the 30-day mark. Submit your habit formation scorecard today.", sent:true },
-  { id:3, day:60, message:"Halfway through! Your manager will observe you this week — be intentional.", sent:false },
 ];
 
 const MANAGER_OBSERVATIONS = [
@@ -306,7 +303,6 @@ const ROI_DATA = {
     closingRate:     { baseline: 34,  current: 41,  target: 55 },
     docEngagement:   { baseline: 3.1, current: 3.8, target: 4.5 },
     behavioralScore: { baseline: 45,  current: 72,  target: 90 },
-    revenuePerCall:  160,
     journeyLift: [
       { title: "SPIN Selling Mastery",   score: 72, trend: 8,  reps: 18, liftPerRep: 3200 },
       { title: "Objection Handling",     score: 84, trend: 14, reps: 9,  liftPerRep: 4800 },
@@ -316,6 +312,12 @@ const ROI_DATA = {
 };
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
+const TOPBAR_H = 58; // height of the sticky app top bar; inner sticky headers sit below it
+
+function scoreColor(score) {
+  return score >= 80 ? C.accent : score >= 60 ? C.teal : C.amber;
+}
+
 function Tag({ color, bg, children, small }) {
   return <span style={{ background: bg || `${color}18`, color, fontSize: small ? 9 : 10, fontWeight: 700, padding: small ? "2px 6px" : "3px 9px", borderRadius: 6, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{children}</span>;
 }
@@ -368,7 +370,7 @@ function StarRating({ value, onChange, size = 20 }) {
   return (
     <div style={{ display: "flex", gap: 4 }}>
       {[1,2,3,4,5].map(s => (
-        <button key={s} onClick={() => onChange && onChange(s)}
+        <button key={s} onClick={() => onChange && onChange(s)} disabled={!onChange} aria-label={`${s} star${s > 1 ? "s" : ""}`} aria-pressed={s <= value}
           style={{ background: "none", border: "none", cursor: onChange ? "pointer" : "default", fontSize: size, color: s <= value ? C.amber : C.border, padding: 0 }}>★</button>
       ))}
     </div>
@@ -376,9 +378,23 @@ function StarRating({ value, onChange, size = 20 }) {
 }
 
 // ── AI Coach Modal ────────────────────────────────────────────────────────────
-function AIModal({ onClose }) {
+// The coach speaks to the trainee directly, and about the trainee to everyone else
+const AI_CONTEXT = "Ahmad Khalil, pharma rep, Day 47 of the SPIN Selling journey, Phase 3. He rushes Implication questions under time pressure.";
+const AI_PERSONA = {
+  trainee: {
+    greeting: "Hi Ahmad — you understand SPIN well, but under time pressure you tend to skip Implication questions. What would you like to work on?",
+    system: `You are an AI Behavioral Coaching Engine talking directly to the learner. Learner: ${AI_CONTEXT} Address him as "you". Be specific, direct, warm. Max 4 sentences. Ask one coaching question.`,
+  },
+  other: {
+    greeting: "I've reviewed Ahmad's patterns. He understands SPIN conceptually but skips Implication questions under time pressure. What would you like to explore?",
+    system: `You are an AI Behavioral Coaching Engine advising a trainer, manager or L&D admin about a learner. Learner: ${AI_CONTEXT} Be specific, direct, warm. Max 4 sentences. Ask one coaching question.`,
+  },
+};
+
+function AIModal({ onClose, role }) {
+  const persona = AI_PERSONA[role === "trainee" ? "trainee" : "other"];
   const [input, setInput] = useState("");
-  const [msgs, setMsgs] = useState([{ role: "assistant", text: "I've reviewed Ahmad's patterns. He understands SPIN conceptually but skips Implication questions under time pressure. What would you like to explore?" }]);
+  const [msgs, setMsgs] = useState([{ role: "assistant", text: persona.greeting }]);
   const [loading, setLoading] = useState(false);
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
@@ -387,19 +403,23 @@ function AIModal({ onClose }) {
     const msg = input.trim(); setInput("");
     setMsgs(m => [...m, { role: "user", text: msg }]); setLoading(true);
     try {
+      // Send the conversation from the first user turn on; the canned greeting goes in the system prompt
       const history = [...msgs, { role: "user", text: msg }];
-      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: "You are an AI Behavioral Coaching Engine. Context: Ahmad Khalil, pharma rep, Day 47 SPIN Selling journey, Phase 3. He rushes Implication questions. Be specific, direct, warm. Max 4 sentences. Ask one coaching question.", messages: history.map(m => ({ role: m.role, content: m.text })) }) });
+      const firstUser = history.findIndex(m => m.role === "user");
+      const system = `${persona.system} You opened the conversation with: "${persona.greeting}"`;
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system, messages: history.slice(firstUser).map(m => ({ role: m.role, content: m.text })) }) });
+      if (!res.ok) throw new Error(`Coach request failed (${res.status})`);
       const data = await res.json();
       setMsgs(m => [...m, { role: "assistant", text: data.text || "Let me reflect on that." }]);
-    } catch { setMsgs(m => [...m, { role: "assistant", text: "Connection issue. Try again." }]); }
-    setLoading(false);
+    } catch { setMsgs(m => [...m, { role: "assistant", text: "The AI coach isn't reachable right now. Try again." }]); }
+    finally { setLoading(false); }
   };
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", flexDirection: "column", background: C.bg, maxWidth: 430, margin: "0 auto" }}>
       <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12, background: C.surface, boxShadow: C.shadow }}>
-        <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>←</button>
+        <button onClick={onClose} aria-label="Close AI coach" style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>←</button>
         <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✦</div>
-        <div><div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>AI Coaching Engine</div><div style={{ fontSize: 11, color: C.accentMid }}>● Live · Ahmad Khalil · Day 47</div></div>
+        <div><div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>AI Coaching Engine</div><div style={{ fontSize: 11, color: C.accentMid }}>● {role === "trainee" ? "Your coach" : "Ahmad Khalil"} · Day 47</div></div>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
         {msgs.map((m, i) => (
@@ -413,7 +433,7 @@ function AIModal({ onClose }) {
       </div>
       <div style={{ padding: "12px 16px 24px", borderTop: `1px solid ${C.border}`, background: C.surface, display: "flex", gap: 10 }}>
         <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask about behavioral patterns…" style={{ flex: 1, background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 24, padding: "11px 16px", color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
-        <button onClick={send} disabled={loading} style={{ width: 44, height: 44, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentMid})`, border: "none", color: C.white, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
+        <button onClick={send} disabled={loading} aria-label="Send message" style={{ width: 44, height: 44, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentMid})`, border: "none", color: C.white, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
       </div>
     </div>
   );
@@ -444,7 +464,7 @@ function NotificationsPanel({ items, onUpdate, onClose }) {
             {unread > 0 && (
               <button onClick={markAll} style={{ padding: "5px 11px", background: C.accentSoft2, border: `1px solid ${C.accentLight}55`, borderRadius: 9, fontSize: 11, fontWeight: 700, color: C.accent, cursor: "pointer" }}>Mark all read</button>
             )}
-            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 14, cursor: "pointer" }}>✕</button>
+            <button onClick={onClose} aria-label="Close notifications" style={{ width: 30, height: 30, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 14, cursor: "pointer" }}>✕</button>
           </div>
         </div>
 
@@ -482,11 +502,15 @@ function NotificationsPanel({ items, onUpdate, onClose }) {
 // ════════════════════════════════════════════════════════════════════════
 // BASELINE CHECK-IN — Day 0 / 45 / 90 self-assessment (Priority 2)
 // ════════════════════════════════════════════════════════════════════════
-function BaselineCheckIn({ journeyColor }) {
+const INITIAL_CHECKIN = { stage: "prompt", answers: {}, qIndex: 0 };
+
+// State is owned by the parent so progress survives tab switches
+function BaselineCheckIn({ state, setState }) {
   // stage: "prompt" → "form" → "done"
-  const [stage, setStage] = useState("prompt");
-  const [answers, setAnswers] = useState({});
-  const [qIndex, setQIndex] = useState(0);
+  const { stage, answers, qIndex } = state;
+  const setStage = stage => setState({ ...state, stage });
+  const setAnswers = answers => setState({ ...state, answers });
+  const setQIndex = qIndex => setState({ ...state, qIndex });
 
   const q = BASELINE_QUESTIONS[qIndex];
   const allAnswered = Object.keys(answers).length === BASELINE_QUESTIONS.length;
@@ -668,10 +692,12 @@ function LoginScreen({ onLogin }) {
 function AdminSection() {
   const [tab, setTab] = useState("clients");
   const [selectedClient, setSelectedClient] = useState(1);
-  const [showAddClient, setShowAddClient] = useState(false);
   const tabs = [{ id: "clients", label: "Clients" }, { id: "users", label: "Users" }, { id: "journeys", label: "Journeys" }, { id: "roi", label: "ROI" }, { id: "settings", label: "Settings" }];
   const client = CLIENTS.find(c => c.id === selectedClient);
   const clientJourneys = JOURNEYS.filter(j => j.clientId === selectedClient);
+  const activeClientJourneys = clientJourneys.filter(j => j.status === "active");
+  const clientLearners = activeClientJourneys.reduce((n, j) => n + (WORKSHOPS.find(w => w.id === j.workshopId)?.attendees || 0), 0);
+  const clientAvgScore = activeClientJourneys.length ? Math.round(activeClientJourneys.reduce((n, j) => n + j.score, 0) / activeClientJourneys.length) : null;
 
   return (
     <div style={{ paddingBottom: 100 }}>
@@ -711,7 +737,7 @@ function AdminSection() {
                   </div>
                 </button>
               ))}
-              <button onClick={() => setShowAddClient(!showAddClient)}
+              <button
                 style={{ padding: "13px 16px", background: C.accentSoft, border: `1.5px dashed ${C.accentLight}`, borderRadius: 14, cursor: "pointer", color: C.accent, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 + Add New Client
               </button>
@@ -727,7 +753,7 @@ function AdminSection() {
                     <div>
                       <div style={{ fontSize: 17, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>{client.name}</div>
                       <div style={{ fontSize: 12, color: C.muted }}>{client.industry} · {client.country} · {client.size}</div>
-                      <div style={{ marginTop: 5 }}><Tag color={C.accent}>Active Contract: {client.contractStart} – {client.contractEnd}</Tag></div>
+                      <div style={{ marginTop: 5 }}><Tag color={client.status === "active" ? C.accent : C.amber}>{client.status === "active" ? "Active" : client.status} contract: {client.contractStart} – {client.contractEnd}</Tag></div>
                     </div>
                   </div>
 
@@ -776,10 +802,10 @@ function AdminSection() {
                 {/* Stats for this client */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
                   {[
-                    { label: "Active Journeys", val: clientJourneys.filter(j=>j.status==="active").length.toString(), color: C.accent },
-                    { label: "Total Learners", val: "39", color: C.teal },
-                    { label: "Avg. Score", val: "72%", color: C.amber },
-                    { label: "Completion", val: "78%", color: C.purple },
+                    { label: "Active Journeys", val: activeClientJourneys.length.toString(), color: C.accent },
+                    { label: "Active Learners", val: clientLearners.toString(), color: C.teal },
+                    { label: "Avg. Score", val: clientAvgScore === null ? "—" : `${clientAvgScore}%`, color: C.amber },
+                    { label: "Upcoming / Planned", val: clientJourneys.filter(j => j.status !== "active").length.toString(), color: C.purple },
                   ].map((k, i) => (
                     <Card key={i} style={{ padding: "13px 15px", position: "relative", overflow: "hidden" }}>
                       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: k.color }} />
@@ -805,7 +831,7 @@ function AdminSection() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{u.name}</div>
                     <div style={{ fontSize: 11, color: C.muted }}>{u.role} · Manager: {u.manager}</div>
                   </div>
-                  <Tag color={C.teal}>Journey {u.workshopId}</Tag>
+                  <Tag color={C.teal}>{WORKSHOPS.find(w => w.id === u.workshopId)?.title}</Tag>
                 </Card>
               ))}
               {[{ name: "Shadi Obeidat", role: "Trainer", ws: "Journeys 1 & 3" }, { name: "Sara Al-Najjar", role: "Trainer", ws: "Journey 2" }, { name: "Layla Mansour", role: "District Manager", ws: "—" }].map((u, i) => (
@@ -863,22 +889,25 @@ function AdminSection() {
         {tab === "roi" && (() => {
           const roi = ROI_DATA[1];
           const totalLift = roi.journeyLift.reduce((s, j) => s + j.liftPerRep * j.reps, 0);
+          const totalReps = roi.journeyLift.reduce((s, j) => s + j.reps, 0);
           const scoreDelta = roi.behavioralScore.current - roi.behavioralScore.baseline;
           const scoreToTarget = roi.behavioralScore.target - roi.behavioralScore.baseline;
           const progressPct = Math.round((scoreDelta / scoreToTarget) * 100);
+          // Projection assumes lift grows in proportion to behavioral-score gain (a simplifying assumption)
+          const fullAdoptionLift = Math.round(totalLift * scoreToTarget / scoreDelta / 1000) * 1000;
           return (
             <div>
               <div style={{ marginBottom: 18 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", marginBottom: 2 }}>ROI DASHBOARD</div>
                 <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Behavior → Business Impact</div>
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>PharmaEdge Middle East · SPIN Selling cohort · 18 reps</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>PharmaEdge Middle East · Field metrics: SPIN Selling cohort ({roi.repsCount} reps)</div>
               </div>
 
               {/* Hero metric */}
               <Card style={{ padding: "20px", marginBottom: 14, background: `linear-gradient(135deg,${C.accentSoft} 0%,${C.white} 70%)`, border: `1.5px solid ${C.accentLight}55` }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 6 }}>ESTIMATED MONTHLY REVENUE LIFT</div>
                 <div style={{ fontSize: 36, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.accent }}>${totalLift.toLocaleString()}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Across all active journeys · {roi.repsCount} reps total</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Across {roi.journeyLift.length} tracked workshops · {totalReps} rep enrolments</div>
                 <div style={{ height: 1, background: C.border, margin: "14px 0" }} />
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 8 }}>BEHAVIORAL PROGRESS TOWARD TARGET</div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
@@ -918,7 +947,7 @@ function AdminSection() {
               {roi.journeyLift.map((j, i) => {
                 const lift = j.liftPerRep * j.reps;
                 const pct = Math.round((lift / totalLift) * 100);
-                const scoreColor = j.score >= 80 ? C.accent : j.score >= 65 ? C.teal : C.amber;
+                const liftColor = scoreColor(j.score);
                 return (
                   <Card key={i} style={{ padding: "14px 16px", marginBottom: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
@@ -927,18 +956,18 @@ function AdminSection() {
                         <div style={{ fontSize: 11, color: C.muted }}>{j.reps} reps · Score: {j.score}% (+{j.trend}% this month)</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: scoreColor }}>${lift.toLocaleString()}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: liftColor }}>${lift.toLocaleString()}</div>
                         <div style={{ fontSize: 9, color: C.muted }}>{pct}% of total lift</div>
                       </div>
                     </div>
-                    <PBar pct={pct} color={scoreColor} h={4} />
+                    <PBar pct={pct} color={liftColor} h={4} />
                   </Card>
                 );
               })}
 
               <Card style={{ padding: "12px 14px", background: C.subtle, border: `1px solid ${C.border}` }}>
                 <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.7 }}>
-                  ✦ Lift estimate: additional daily calls × $160/call × rep count. Behavioral score determines call quality multiplier. At full adoption (90%), estimated lift reaches <strong style={{ color: C.accent }}>$138,000/month</strong>.
+                  ✦ Lift estimate: for each workshop, estimated monthly lift per rep × reps enrolled, summed across workshops. Projection assumes lift grows in proportion to behavioral-score gain: at full adoption ({roi.behavioralScore.target}%), estimated lift reaches <strong style={{ color: C.accent }}>${fullAdoptionLift.toLocaleString()}/month</strong>. Demo figures — not measured results.
                 </div>
               </Card>
             </div>
@@ -967,20 +996,13 @@ function AdminSection() {
 // ════════════════════════════════════════════════════════════════════════
 function TrainerSection() {
   const [tab, setTab] = useState("workshops");
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [showReminder, setShowReminder] = useState(false);
-  const [reminderText, setReminderText] = useState("");
-  const [quizSent, setQuizSent] = useState(false);
-  const [reminderSent, setReminderSent] = useState(false);
-  const [selectedWs, setSelectedWs] = useState(1);
   const [ratings, setRatings] = useState({ 1: 4, 3: 5 });
   const [ratingNotes, setRatingNotes] = useState({ 1: ASSIGNMENTS[0].trainerNote, 2: "" });
   const [activeAsgn, setActiveAsgn] = useState(null);
+  const [savedAsgn, setSavedAsgn] = useState(null);
   const [selectedJourney, setSelectedJourney] = useState(null);
 
   const me = { name: "Shadi Obeidat" };
-  const myWorkshops = WORKSHOPS;
-  const ws = myWorkshops.find(w => w.id === selectedWs);
 
   const tabs = [{ id: "workshops", l: "Journeys" }, { id: "assignments", l: "Assignments" }, { id: "messages", l: "Messages" }, { id: "reports", l: "Reports" }];
 
@@ -1059,7 +1081,7 @@ function TrainerSection() {
                       <div style={{ flex: 1, paddingRight: 30 }}>
                         <div style={{ fontSize: 9, fontWeight: 700, color: j.color, letterSpacing: "0.08em", marginBottom: 2 }}>JOURNEY {j.number}</div>
                         <div style={{ fontSize: 14, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text, lineHeight: 1.2 }}>{j.title}</div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{j.facilitator} · {j.startDate} – {j.endDate} · {j.attendees || TEAM.filter(t=>t.workshopId===j.workshopId).length} learners</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{j.facilitator} · {j.startDate} – {j.endDate} · {WORKSHOPS.find(w => w.id === j.workshopId)?.attendees ?? 0} learners</div>
                       </div>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: j.status === "active" ? 10 : 0 }}>
@@ -1100,7 +1122,7 @@ function TrainerSection() {
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
                         <Tag color={statusColor}>{a.status}</Tag>
-                        <button onClick={() => setActiveAsgn(isOpen ? null : a.id)}
+                        <button onClick={() => setActiveAsgn(isOpen ? null : a.id)} aria-label={isOpen ? "Collapse assignment" : "Expand assignment"} aria-expanded={isOpen}
                           style={{ background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 7, padding: "3px 8px", fontSize: 12, cursor: "pointer", color: C.muted }}>
                           {isOpen ? "▲" : "▼"}
                         </button>
@@ -1123,7 +1145,11 @@ function TrainerSection() {
                             <StarRating value={ratings[a.id] || a.trainerRating || 0} onChange={v => setRatings({ ...ratings, [a.id]: v })} />
                             <textarea value={ratingNotes[a.id] ?? a.trainerNote} onChange={e => setRatingNotes({ ...ratingNotes, [a.id]: e.target.value })} rows={2}
                               placeholder="Feedback note…" style={{ width: "100%", background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 12px", fontSize: 12, color: C.text, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6, marginTop: 8 }} />
-                            <div style={{ marginTop: 8 }}><Btn small color={C.accent}>Save Feedback</Btn></div>
+                            <div style={{ marginTop: 8 }}>
+                              {savedAsgn === a.id
+                                ? <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>✓ Feedback saved</span>
+                                : <Btn small color={C.accent} onClick={() => { setSavedAsgn(a.id); setTimeout(() => setSavedAsgn(cur => cur === a.id ? null : cur), 2000); }}>Save Feedback</Btn>}
+                            </div>
                           </div>
                         ) : (
                           <div style={{ padding: "10px 12px", background: a.status === "overdue" ? C.roseSoft : C.amberSoft, borderRadius: 10, fontSize: 12, color: a.status === "overdue" ? C.rose : C.amber, fontWeight: 600 }}>
@@ -1223,12 +1249,23 @@ function MessagingPanel({ role, userName }) {
 // ════════════════════════════════════════════════════════════════════════
 // MATERIALS TAB — proper component so hooks work correctly
 // ════════════════════════════════════════════════════════════════════════
-function MaterialsTab({ workshopId, ws }) {
+function initialMaterialsProgress(mat) {
+  return {
+    watched: mat?.videos.filter(v=>v.watched).map(v=>v.id) || [],
+    done:    mat?.exercises.filter(e=>e.completed).map(e=>e.id) || [],
+  };
+}
+
+// Pass progress/onProgress to keep progress across tab switches; otherwise it is local
+function MaterialsTab({ workshopId, ws, progress, onProgress }) {
   const mat = WORKSHOP_MATERIALS[workshopId];
   const [matSection, setMatSection]   = useState("outline");
-  const [watchedVideos, setWatchedVideos]   = useState(() => mat?.videos.filter(v=>v.watched).map(v=>v.id) || []);
-  const [doneExercises, setDoneExercises]   = useState(() => mat?.exercises.filter(e=>e.completed).map(e=>e.id) || []);
+  const [localProgress, setLocalProgress]   = useState(() => initialMaterialsProgress(mat));
   const [expandedWeek, setExpandedWeek]     = useState(null);
+  const { watched: watchedVideos, done: doneExercises } = progress || localProgress;
+  const saveProgress = onProgress || setLocalProgress;
+  const setWatchedVideos = watched => saveProgress({ watched, done: doneExercises });
+  const setDoneExercises = done => saveProgress({ watched: watchedVideos, done });
 
   if (!mat) return (
     <div style={{ padding:"40px 16px", textAlign:"center", color:C.muted }}>
@@ -1440,7 +1477,7 @@ function MaterialsTab({ workshopId, ws }) {
 // ════════════════════════════════════════════════════════════════════════
 // JOURNEY DETAIL VIEW — tabbed inner screen for trainee & trainer
 // ════════════════════════════════════════════════════════════════════════
-function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAnswers, setQuizAnswers, quizDone, setQuizDone, myAssignments, me, onBack, role = "trainee" }) {
+function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAnswers, setQuizAnswers, quizDone, setQuizDone, checkIn, setCheckIn, materialsProgress, setMaterialsProgress, myAssignments, me, onBack, role = "trainee" }) {
   const [innerTab, setInnerTab] = useState("overview");
   const [newMsg, setNewMsg] = useState("");
   const [sentMsg, setSentMsg] = useState(false);
@@ -1463,9 +1500,9 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
   return (
     <div style={{ paddingBottom: 100 }}>
       {/* ── Sticky back + title header ── */}
-      <div style={{ position: "sticky", top: 54, zIndex: 90, background: C.white, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ position: "sticky", top: TOPBAR_H, zIndex: 90, background: C.white, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={onBack}
+          <button onClick={onBack} aria-label="Back to journeys"
             style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>←</button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: j.color, letterSpacing: "0.09em", textTransform: "uppercase" }}>Journey {j.number}</div>
@@ -1491,7 +1528,7 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
         {innerTab === "overview" && (
           <div>
             {/* Day 45 check-in (trainee, active journey only) */}
-            {!isTrainer && j.status === "active" && <BaselineCheckIn journeyColor={j.color} />}
+            {!isTrainer && j.status === "active" && checkIn && <BaselineCheckIn state={checkIn} setState={setCheckIn} />}
 
             {/* Status card */}
             <Card style={{ padding: "16px", marginBottom: 14, borderTop: `3px solid ${j.color}` }}>
@@ -1581,7 +1618,7 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>LEARNER PROGRESS</div>
                 {TEAM.filter(t => t.workshopId === j.workshopId).map(t => {
-                  const sc = t.score > 80 ? C.accent : t.score > 60 ? C.teal : C.amber;
+                  const sc = scoreColor(t.score);
                   return (
                     <Card key={t.id} style={{ padding: "13px 15px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
                       <Ring pct={t.score} color={sc} size={42} stroke={4} label={t.avatar} />
@@ -1602,7 +1639,7 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
         {innerTab === "materials" && (
           <div>
             {j.status === "active" && ws
-              ? <MaterialsTab workshopId={j.workshopId} ws={ws} />
+              ? <MaterialsTab workshopId={j.workshopId} ws={ws} progress={materialsProgress} onProgress={setMaterialsProgress} />
               : (
                 <div style={{ padding: "40px 20px", textAlign: "center" }}>
                   <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
@@ -1729,15 +1766,23 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
                 {isTrainer ? "TRAINER VIEW" : "FROM TRAINER"}
               </div>
               <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>
-                {isTrainer ? "Quiz Management" : "Active Quiz"}
+                {isTrainer ? "Quiz Management" : j.status === "active" ? "Active Quiz" : "Quiz"}
               </div>
               <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                {isTrainer ? "Send quizzes and view results." : `${j.title} · Complete before Day 52`}
+                {j.status !== "active" ? j.title : isTrainer ? "Send quizzes and view results." : `${j.title} · Complete before Day 52`}
               </div>
             </div>
 
+            {j.status !== "active" && (
+              <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>No quiz yet</div>
+                <div style={{ fontSize: 13, color: C.muted }}>Quizzes become available when this journey starts on {j.startDate}.</div>
+              </div>
+            )}
+
             {/* Trainer view: sent quiz + create new */}
-            {isTrainer && (
+            {isTrainer && j.status === "active" && (
               <div>
                 <Card style={{ padding: "15px", marginBottom: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -1766,7 +1811,7 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
             )}
 
             {/* Trainee view: answer quiz */}
-            {!isTrainer && (
+            {!isTrainer && j.status === "active" && (
               <div>
                 {!quizDone ? (
                   <div>
@@ -1781,8 +1826,8 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
                         ))}
                       </Card>
                     ))}
-                    <Btn full onClick={() => Object.keys(quizAnswers).length === QUIZ_QUESTIONS.length && setQuizDone(true)}>
-                      Submit Quiz
+                    <Btn full disabled={Object.keys(quizAnswers).length < QUIZ_QUESTIONS.length} onClick={() => Object.keys(quizAnswers).length === QUIZ_QUESTIONS.length && setQuizDone(true)}>
+                      {Object.keys(quizAnswers).length < QUIZ_QUESTIONS.length ? `Answer all questions (${Object.keys(quizAnswers).length}/${QUIZ_QUESTIONS.length})` : "Submit Quiz"}
                     </Btn>
                   </div>
                 ) : (
@@ -1850,7 +1895,7 @@ function JourneyDetailView({ j, ws, ss, jTabs, objectives, setObjectives, quizAn
                   style={{ flex: 1, background: C.subtle, border: `1px solid ${C.border}`, borderRadius: 24, padding: "10px 16px", color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
                 {sentMsg
                   ? <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.accentSoft2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: C.accent }}>✓</div>
-                  : <button onClick={sendMsg} style={{ width: 40, height: 40, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentMid})`, border: "none", color: C.white, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
+                  : <button onClick={sendMsg} aria-label="Send message" style={{ width: 40, height: 40, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentMid})`, border: "none", color: C.white, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
                 }
               </div>
             </Card>
@@ -1874,15 +1919,13 @@ function TraineeSection() {
     { id: 1, text: "Stop rushing through Implication stage — set a mental timer", progress: 40, note: "Still struggling under time pressure" },
     { id: 2, text: "Ask Situation questions confidently even with specialists", progress: 65, note: "Getting better" },
   ]);
-  const [quizAnswers, setQuizAnswers] = useState({});
-  const [quizDone, setQuizDone] = useState(false);
-
-  // The workshop corresponding to the selected journey (for MaterialsTab)
-  const activeJourneyData = selectedJourney ? JOURNEYS.find(j => j.id === selectedJourney) : null;
-  const activeWs = activeJourneyData ? WORKSHOPS.find(w => w.id === activeJourneyData.workshopId) : null;
+  // Kept here (not in JourneyDetailView) so progress survives tab switches and leaving the journey
+  const [quizState, setQuizState] = useState({});               // { [journeyId]: { answers, done } }
+  const [checkIn, setCheckIn] = useState(INITIAL_CHECKIN);
+  const [materialsProgress, setMaterialsProgress] = useState({}); // { [workshopId]: { watched, done } }
 
   const tabs = [{ id: "journeys", l: "My Journeys" }];
-  const sc = me.score > 80 ? C.accent : me.score > 60 ? C.teal : C.amber;
+  const sc = scoreColor(me.score);
 
   const statusStyle = {
     active:    { color: C.accent,  bg: C.accentSoft2, label: "Active"    },
@@ -1904,12 +1947,18 @@ function TraineeSection() {
       { id: "messages",    icon: "💬", label: "Messages"    },
     ];
 
+    const quiz = quizState[j.id] || { answers: {}, done: false };
+    const updateQuiz = patch => setQuizState(prev => ({ ...prev, [j.id]: { answers: {}, done: false, ...prev[j.id], ...patch } }));
+
     return (
       <JourneyDetailView
         j={j} ws={ws} ss={ss} jTabs={jTabs}
         objectives={objectives} setObjectives={setObjectives}
-        quizAnswers={quizAnswers} setQuizAnswers={setQuizAnswers}
-        quizDone={quizDone} setQuizDone={setQuizDone}
+        quizAnswers={quiz.answers} setQuizAnswers={answers => updateQuiz({ answers })}
+        quizDone={quiz.done} setQuizDone={done => updateQuiz({ done })}
+        checkIn={checkIn} setCheckIn={setCheckIn}
+        materialsProgress={materialsProgress[j.workshopId] || initialMaterialsProgress(WORKSHOP_MATERIALS[j.workshopId])}
+        setMaterialsProgress={p => setMaterialsProgress(prev => ({ ...prev, [j.workshopId]: p }))}
         myAssignments={myAssignments} me={me}
         onBack={() => setSelectedJourney(null)}
       />
@@ -2031,79 +2080,6 @@ function TraineeSection() {
           </div>
         )}
 
-        {/* ── ASSIGNMENTS ── */}
-        {tab === "assignments" && (
-          <div>
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 3 }}>TRAINEE</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>My Assignments</div>
-              <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>Submit your work and track feedback.</div>
-            </div>
-            {myAssignments.map(a => {
-              const statusColor = a.status === "submitted" ? C.accent : a.status === "overdue" ? C.rose : C.amber;
-              return (
-                <Card key={a.id} style={{ padding: "15px", marginBottom: 10, overflow: "hidden" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                    <div style={{ flex: 1, paddingRight: 10 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.title}</div>
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Due: Day {a.dueDay} · Type: {a.type}</div>
-                    </div>
-                    <Tag color={statusColor}>{a.status}</Tag>
-                  </div>
-                  {a.status === "submitted" && a.trainerRating && (
-                    <div style={{ padding: "10px 12px", background: C.accentSoft, borderRadius: 10, border: `1px solid ${C.accentLight}44` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, marginBottom: 5 }}>TRAINER FEEDBACK</div>
-                      <StarRating value={a.trainerRating} />
-                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 5, lineHeight: 1.55 }}>{a.trainerNote}</div>
-                    </div>
-                  )}
-                  {a.status !== "submitted" && (
-                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                      <Btn small color={C.accent}>📎 Upload Document</Btn>
-                      <Btn small color={C.teal}>🎙 Voice Note</Btn>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── QUIZ ── */}
-        {tab === "quiz" && (
-          <div>
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", marginBottom: 3 }}>FROM TRAINER</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'DM Serif Display',serif", color: C.text }}>Active Quiz</div>
-              <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>SPIN Selling — Complete before Day 52.</div>
-            </div>
-            {!quizDone ? (
-              <div>
-                {QUIZ_QUESTIONS.map((q, i) => (
-                  <Card key={q.id} style={{ padding: "15px", marginBottom: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>{i+1}. {q.q}</div>
-                    {q.options.map((opt, j) => (
-                      <button key={j} onClick={() => setQuizAnswers({ ...quizAnswers, [q.id]: j })}
-                        style={{ width: "100%", padding: "10px 12px", background: quizAnswers[q.id] === j ? C.accentSoft2 : C.subtle, border: `1.5px solid ${quizAnswers[q.id] === j ? C.accent : C.border}`, borderRadius: 10, textAlign: "left", cursor: "pointer", fontSize: 12, color: quizAnswers[q.id] === j ? C.accent : C.textSoft, fontWeight: quizAnswers[q.id] === j ? 700 : 400, marginBottom: 6 }}>
-                        {opt}
-                      </button>
-                    ))}
-                  </Card>
-                ))}
-                <Btn full onClick={() => Object.keys(quizAnswers).length === QUIZ_QUESTIONS.length && setQuizDone(true)}>Submit Quiz</Btn>
-              </div>
-            ) : (
-              <Card style={{ padding: "28px", textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: C.accent, fontFamily: "'DM Serif Display',serif" }}>Quiz Submitted!</div>
-                <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>Your trainer will review and provide feedback shortly.</div>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {/* ── MESSAGES ── */}
-        {tab === "messages" && <MessagingPanel role="trainee" userName={me.name} />}
       </div>
     </div>
   );
@@ -2158,10 +2134,10 @@ function ManagerSection() {
             <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", marginBottom: 10 }}>MY DIRECT REPORTS</div>
             <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: 16 }}>
               {myTeam.map(t => {
-                const sc = t.score > 80 ? C.accent : t.score > 60 ? C.teal : C.amber;
+                const sc = scoreColor(t.score);
                 const lastObs = observations.find(o => o.teamId === t.id);
                 return (
-                  <button key={t.id} onClick={() => setSelectedMember(t.id)}
+                  <button key={t.id} onClick={() => { setSelectedMember(t.id); setShowForm(false); setEditedAssignment(null); }}
                     style={{ flexShrink: 0, width: 100, padding: "12px 10px", background: selectedMember === t.id ? C.amberSoft : C.white, border: `1.5px solid ${selectedMember === t.id ? C.amber : C.border}`, borderRadius: 14, cursor: "pointer", textAlign: "center", boxShadow: C.shadow }}>
                     <Ring pct={t.score} color={sc} size={42} stroke={4} label={t.avatar} />
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginTop: 7 }}>{t.name.split(" ")[0]}</div>
@@ -2176,7 +2152,7 @@ function ManagerSection() {
                 {/* Member details */}
                 <Card style={{ padding: "16px", marginBottom: 14 }}>
                   <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
-                    <Ring pct={member.score} color={member.score > 80 ? C.accent : member.score > 60 ? C.teal : C.amber} size={52} stroke={4} label={member.avatar} />
+                    <Ring pct={member.score} color={scoreColor(member.score)} size={52} stroke={4} label={member.avatar} />
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{member.name}</div>
                       <div style={{ fontSize: 12, color: C.muted }}>{member.role} · Phase {member.phase}/4 · 🔥 {member.streak}d</div>
@@ -2223,7 +2199,7 @@ function ManagerSection() {
                         <div style={{ display: "flex", gap: 8 }}>
                           <Btn full color={C.amber} onClick={() => {
                             if (!form.note.trim()) return;
-                            setObservations([{ id: `obs_${Date.now()}`, teamId: member.id, date: `Day ${member.streak + 2}`, type: form.type, rating: form.rating, status: form.rating >= 5 ? "excellent" : form.rating >= 4 ? "on-track" : form.rating >= 2 ? "needs-work" : "at-risk", note: form.note }, ...observations]);
+                            setObservations([{ id: `obs_${Date.now()}`, teamId: member.id, date: memberWs ? `Day ${memberWs.day}` : "Today", type: form.type, rating: form.rating, status: form.rating >= 5 ? "excellent" : form.rating >= 4 ? "on-track" : form.rating >= 2 ? "needs-work" : "at-risk", note: form.note }, ...observations]);
                             setSubmitted(true); setTimeout(() => { setSubmitted(false); setShowForm(false); setForm({ type: "Joint Visit", note: "", rating: 3 }); }, 2000);
                           }}>Submit</Btn>
                           <Btn outline onClick={() => setShowForm(false)}>Cancel</Btn>
@@ -2342,8 +2318,6 @@ function App() {
 
   if (!currentRole) return (
     <div style={{ fontFamily: "'Syne',sans-serif", maxWidth: 430, margin: "0 auto" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
-      <style>{`* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; } body { background:${C.bg}; } ::-webkit-scrollbar{display:none;} button{font-family:'Syne',sans-serif;} input,textarea{font-family:'Syne',sans-serif; -webkit-appearance:none;} input::placeholder,textarea::placeholder{color:${C.muted};} @keyframes dot{0%,100%{opacity:.3;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}`}</style>
       <LoginScreen onLogin={setCurrentRole} />
     </div>
   );
@@ -2354,11 +2328,9 @@ function App() {
 
   return (
     <div style={{ fontFamily: "'Syne',sans-serif", background: C.bg, color: C.text, minHeight: "100vh", maxWidth: 430, margin: "0 auto", position: "relative" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
-      <style>{`* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; } body { background:${C.bg}; } ::-webkit-scrollbar{display:none;} button{font-family:'Syne',sans-serif;} input,textarea{font-family:'Syne',sans-serif; -webkit-appearance:none;} input::placeholder,textarea::placeholder{color:${C.muted};} @keyframes dot{0%,100%{opacity:.3;transform:scale(.75)}50%{opacity:1;transform:scale(1)}} @keyframes slideDown{from{transform:translateY(-30px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
 
       {/* Top bar */}
-      <div style={{ position: "sticky", top: 0, zIndex: 100, background: `${C.white}EE`, backdropFilter: "blur(14px)", borderBottom: `1px solid ${C.border}`, padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 8px rgba(26,122,74,0.07)" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 100, background: `${C.white}EE`, backdropFilter: "blur(14px)", borderBottom: `1px solid ${C.border}`, height: TOPBAR_H, padding: "0 18px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 8px rgba(26,122,74,0.07)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg,${C.accent},${C.accentLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: C.white, boxShadow: "0 2px 8px rgba(26,122,74,0.25)" }}>◈</div>
           <div>
@@ -2369,26 +2341,26 @@ function App() {
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ padding: "4px 10px", background: `${cfg.color}15`, border: `1px solid ${cfg.color}44`, borderRadius: 20, fontSize: 10, color: cfg.color, fontWeight: 700 }}>{cfg.icon} {cfg.label}</div>
           {/* Notification bell */}
-          <button onClick={() => setShowNotifications(true)}
+          <button onClick={() => setShowNotifications(true)} aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
             style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.textSoft, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
             🔔
             {unreadCount > 0 && (
               <div style={{ position: "absolute", top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 8, background: C.rose, color: C.white, fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", border: `1.5px solid ${C.white}` }}>{unreadCount}</div>
             )}
           </button>
-          <button onClick={() => setShowAI(true)}
+          <button onClick={() => setShowAI(true)} aria-label="Open AI coach"
             style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accentLight})`, border: "none", color: C.white, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(26,122,74,0.3)" }}>✦</button>
-          <button onClick={() => setCurrentRole(null)}
+          <button onClick={() => setCurrentRole(null)} aria-label="Switch role"
             style={{ width: 34, height: 34, borderRadius: "50%", background: C.subtle, border: `1px solid ${C.border}`, color: C.muted, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>⟵</button>
         </div>
       </div>
 
       {/* Main content */}
-      <div style={{ minHeight: "calc(100vh - 60px)" }}>
+      <div style={{ minHeight: `calc(100vh - ${TOPBAR_H}px)` }}>
         {sections[currentRole]}
       </div>
 
-      {showAI && <AIModal onClose={() => setShowAI(false)} />}
+      {showAI && <AIModal role={currentRole} onClose={() => setShowAI(false)} />}
       {showNotifications && <NotificationsPanel items={notifs[currentRole] || []} onUpdate={(list) => setNotifs({ ...notifs, [currentRole]: list })} onClose={() => setShowNotifications(false)} />}
     </div>
   );
