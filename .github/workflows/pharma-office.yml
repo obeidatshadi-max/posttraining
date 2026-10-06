@@ -1,0 +1,45 @@
+name: pharma-office
+
+on:
+  pull_request:
+    paths: ["pharma-office/**", ".github/workflows/pharma-office.yml"]
+  push:
+    branches: [main]
+    paths: ["pharma-office/**", ".github/workflows/pharma-office.yml"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pharma-office
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pharma
+          POSTGRES_PASSWORD: pharma
+          POSTGRES_DB: pharma_office
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pharma" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://pharma:pharma@localhost:5432/pharma_office
+      SESSION_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pharma-office/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm test
+        env:
+          RUN_DB_TESTS: "true"
+      - run: npm run build

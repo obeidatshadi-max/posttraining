@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — neutral, information-dense, executive-appropriate.
+ * Source classification colours are reserved for CONFIRMED / REPORTED /
+ * ESTIMATED and are always paired with an icon + text label (never colour alone).
+ */
+@theme {
+  --color-canvas: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-line: #e3e6eb;
+  --color-line-strong: #cfd4dc;
+  --color-ink: #141a23;
+  --color-ink-2: #3a4452;
+  --color-muted: #6b7584;
+  --color-brand: #0e4d64;
+  --color-brand-ink: #ffffff;
+  --color-brand-soft: #e6f0f3;
+
+  --color-confirmed: #1f5f8b;
+  --color-confirmed-soft: #e5eef6;
+  --color-reported: #9a5b00;
+  --color-reported-soft: #fbf1e1;
+  --color-estimated: #5b4a9e;
+  --color-estimated-soft: #efecf8;
+
+  --color-good: #1d7a4f;
+  --color-good-soft: #e3f3ea;
+  --color-warn: #a86400;
+  --color-warn-soft: #fcf0dc;
+  --color-bad: #b42318;
+  --color-bad-soft: #fde8e6;
+  --color-critical: #7a1010;
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans Arabic", "Noto Sans", Tahoma, sans-serif;
+}
+
+html {
+  background: var(--color-canvas);
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum";
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Tabular numbers everywhere numbers are compared. Isolated so surrounding
+ * text cannot reorder them. In Arabic the run stays RTL so mixed values such
+ * as "85.4 مليون د.ع" keep the correct word order; digits, separators and %
+ * still render left-to-right inside it per the Unicode bidi algorithm.
+ */
+.num {
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
